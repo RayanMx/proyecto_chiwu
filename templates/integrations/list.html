@@ -1,0 +1,33 @@
+{% extends 'layouts/base.html' %}
+{% load static %}
+
+{% block title %}Integraciones - Chiwu{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4><i class="fas fa-plug"></i> Integraciones</h4>
+</div>
+
+<div class="row">
+    {% for integration in integrations %}
+    <div class="col-md-3 mb-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="fas fa-{{ integration.icon }} fa-3x {% if integration.connected %}text-success{% else %}text-muted{% endif %}"></i>
+                <h5 class="mt-2">{{ integration.name }}</h5>
+                <p class="text-muted small">
+                    {% if integration.connected %}
+                        <span class="badge bg-success">Conectado</span>
+                    {% else %}
+                        <span class="badge bg-secondary">Desconectado</span>
+                    {% endif %}
+                </p>
+                <button class="btn btn-sm {% if integration.connected %}btn-danger{% else %}btn-primary{% endif %}">
+                    {% if integration.connected %}Desconectar{% else %}Conectar{% endif %}
+                </button>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

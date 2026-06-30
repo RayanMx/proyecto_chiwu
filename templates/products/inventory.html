@@ -1,0 +1,288 @@
+{% extends 'layouts/base.html' %}
+{% load static %}
+
+{% block title %}Inventario - Chiwu{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4><i class="fas fa-boxes"></i> Inventario</h4>
+    <div>
+        <button class="btn btn-success" onclick="exportExcel()">
+            <i class="fas fa-file-excel"></i> Exportar Excel
+        </button>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addProductModal">
+            <i class="fas fa-plus"></i> Nuevo producto
+        </button>
+    </div>
+</div>
+
+<!-- Filtros -->
+<div class="card mb-3">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-4">
+                <input type="text" class="form-control" id="searchProduct" placeholder="Buscar producto...">
+            </div>
+            <div class="col-md-3">
+                <select class="form-select" id="filterCategory">
+                    <option value="">Todas las categorías</option>
+                    {% for category in categories %}
+                    <option value="{{ category.id }}">{{ category.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select class="form-select" id="filterStock">
+                    <option value="">Todos</option>
+                    <option value="disponible">Disponible</option>
+                    <option value="agotado">Agotado</option>
+                </select>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tabla de productos -->
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover" id="inventoryTable">
+                <thead>
+                    <tr>
+                        <th>Categoría</th>
+                        <th>Producto</th>
+                        <th>Variantes</th>
+                        <th>Precios</th>
+                        <th>Stock</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for product in products %}
+                    <tr>
+                        <td>{{ product.category.name }}</td>
+                        <td>
+                            <strong>{{ product.name }}</strong>
+                            {% if product.description %}
+                            <br><small class="text-muted">{{ product.description|truncatechars:30 }}</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if product.variants.exists %}
+                                {% for variant in product.variants.all %}
+                                    <span class="badge bg-info">{{ variant.name }}</span>
+                                {% endfor %}
+                            {% else %}
+                                <span class="badge bg-secondary">Sin variantes</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            ${{ product.price }}
+                            {% if product.variants.exists %}
+                                <br><small class="text-muted">Desde ${{ product.variants.first.price }}</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if product.variants.exists %}
+                                {% for variant in product.variants.all %}
+                                    <div>{{ variant.name }}: {{ variant.stock|default:"0" }}</div>
+                                {% endfor %}
+                            {% else %}
+                                {{ product.stock|default:"0" }}
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if product.is_active %}
+                                <span class="badge bg-success">Disponible</span>
+                            {% else %}
+                                <span class="badge bg-danger">Agotado</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" onclick="editProduct('{{ product.id }}')">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteProduct('{{ product.id }}')">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted">No hay productos registrados</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para agregar producto -->
+<div class="modal fade" id="addProductModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Nuevo producto</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="productForm">
+                    {% csrf_token %}
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label>Categoría</label>
+                            <select class="form-select" name="category" required>
+                                <option value="">Seleccionar...</option>
+                                {% for category in categories %}
+                                <option value="{{ category.id }}">{{ category.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label>Nombre del producto</label>
+                            <input type="text" class="form-control" name="name" required>
+                        </div>
+                        <div class="col-md-12 mb-3">
+                            <label>Descripción</label>
+                            <textarea class="form-control" name="description" rows="2"></textarea>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label>Precio</label>
+                            <input type="number" class="form-control" name="price" step="0.01" required>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label>Costo</label>
+                            <input type="number" class="form-control" name="cost" step="0.01" value="0">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label>Stock</label>
+                            <input type="number" class="form-control" name="stock" value="0">
+                        </div>
+                        <div class="col-md-12 mb-3">
+                            <label>Variantes</label>
+                            <div id="variantsContainer">
+                                <div class="row variant-row">
+                                    <div class="col-md-5">
+                                        <input type="text" class="form-control" name="variant_name[]" placeholder="Nombre variante">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <input type="number" class="form-control" name="variant_price[]" placeholder="Precio" step="0.01">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <input type="number" class="form-control" name="variant_stock[]" placeholder="Stock" value="0">
+                                    </div>
+                                    <div class="col-md-1">
+                                        <button type="button" class="btn btn-danger btn-sm remove-variant">×</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-primary mt-2" id="addVariantBtn">
+                                <i class="fas fa-plus"></i> Agregar variante
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="saveProduct()">Guardar producto</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Agregar variante
+    document.getElementById('addVariantBtn').addEventListener('click', function() {
+        const container = document.getElementById('variantsContainer');
+        const row = document.createElement('div');
+        row.className = 'row variant-row mt-2';
+        row.innerHTML = `
+            <div class="col-md-5">
+                <input type="text" class="form-control" name="variant_name[]" placeholder="Nombre variante">
+            </div>
+            <div class="col-md-3">
+                <input type="number" class="form-control" name="variant_price[]" placeholder="Precio" step="0.01">
+            </div>
+            <div class="col-md-3">
+                <input type="number" class="form-control" name="variant_stock[]" placeholder="Stock" value="0">
+            </div>
+            <div class="col-md-1">
+                <button type="button" class="btn btn-danger btn-sm remove-variant">×</button>
+            </div>
+        `;
+        container.appendChild(row);
+        
+        row.querySelector('.remove-variant').addEventListener('click', function() {
+            if (container.children.length > 1) {
+                row.remove();
+            }
+        });
+    });
+
+    // Eliminar variante inicial
+    document.querySelectorAll('.remove-variant').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const container = document.getElementById('variantsContainer');
+            if (container.children.length > 1) {
+                this.closest('.variant-row').remove();
+            }
+        });
+    });
+
+    // Buscar productos
+    document.getElementById('searchProduct').addEventListener('keyup', function() {
+        filterTable();
+    });
+
+    document.getElementById('filterCategory').addEventListener('change', function() {
+        filterTable();
+    });
+
+    document.getElementById('filterStock').addEventListener('change', function() {
+        filterTable();
+    });
+
+    function filterTable() {
+        const search = document.getElementById('searchProduct').value.toLowerCase();
+        const category = document.getElementById('filterCategory').value;
+        const stock = document.getElementById('filterStock').value;
+        
+        document.querySelectorAll('#inventoryTable tbody tr').forEach(row => {
+            let show = true;
+            const name = row.querySelector('td:nth-child(2)').textContent.toLowerCase();
+            const cat = row.querySelector('td:nth-child(1)').textContent;
+            const status = row.querySelector('td:nth-child(6)').textContent.trim();
+            
+            if (search && !name.includes(search)) show = false;
+            if (category && !cat.includes(category)) show = false;
+            if (stock === 'disponible' && !status.includes('Disponible')) show = false;
+            if (stock === 'agotado' && !status.includes('Agotado')) show = false;
+            
+            row.style.display = show ? '' : 'none';
+        });
+    }
+
+    function saveProduct() {
+        alert('Funcionalidad en desarrollo - Guardar producto');
+    }
+
+    function editProduct(id) {
+        alert('Funcionalidad en desarrollo - Editar producto ' + id);
+    }
+
+    function deleteProduct(id) {
+        if (confirm('¿Eliminar este producto?')) {
+            alert('Funcionalidad en desarrollo - Eliminar producto ' + id);
+        }
+    }
+
+    function exportExcel() {
+        alert('Funcionalidad en desarrollo - Exportar Excel');
+    }
+</script>
+{% endblock %}

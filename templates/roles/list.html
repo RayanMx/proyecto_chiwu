@@ -1,0 +1,76 @@
+{% extends 'layouts/base.html' %}
+{% load static %}
+
+{% block title %}Equipo y roles - Chiwu{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4><i class="fas fa-user-shield"></i> Equipo y roles</h4>
+    <button class="btn btn-primary" onclick="alert('Crear usuario')">
+        <i class="fas fa-plus"></i> Crear usuario
+    </button>
+</div>
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>Roles</h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group">
+                    <div class="list-group-item d-flex justify-content-between">
+                        <span>Admin</span>
+                        <span class="badge bg-primary">{{ users.count }}</span>
+                    </div>
+                    <div class="list-group-item d-flex justify-content-between">
+                        <span>Manager</span>
+                        <span class="badge bg-secondary">0</span>
+                    </div>
+                    <div class="list-group-item d-flex justify-content-between">
+                        <span>Cajero</span>
+                        <span class="badge bg-secondary">0</span>
+                    </div>
+                    <div class="list-group-item d-flex justify-content-between">
+                        <span>Cocinero</span>
+                        <span class="badge bg-secondary">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5>Usuarios</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Usuario</th>
+                                <th>Email</th>
+                                <th>Rol</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in users %}
+                            <tr>
+                                <td>{{ user.username }}</td>
+                                <td>{{ user.email }}</td>
+                                <td><span class="badge bg-primary">Admin</span></td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary">Editar</button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

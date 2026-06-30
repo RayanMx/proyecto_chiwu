@@ -1,0 +1,228 @@
+<div class="row g-3">
+    <div class="col-md-5">
+        <div class="card">
+            <div class="card-header">
+                <ul class="nav nav-tabs card-header-tabs" id="categoryTabsDelivery">
+                    {% for category in categories %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if forloop.first %}active{% endif %}" data-category="{{ category.id }}" href="#">
+                            {{ category.name }}
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+                <div class="mt-2">
+                    <input type="text" class="form-control form-control-sm" id="searchDelivery" placeholder="Buscar producto...">
+                </div>
+            </div>
+            <div class="card-body" style="max-height: 500px; overflow-y: auto;">
+                <div class="row" id="productListDelivery">
+                    {% for product in products %}
+                    <div class="col-md-6 mb-2 product-item" data-category="{{ product.category.id|default:'' }}">
+                        <button class="btn btn-outline-primary w-100 text-start add-product-delivery" 
+                                data-id="{{ product.id }}"
+                                data-name="{{ product.name }}"
+                                data-price="{{ product.price }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span>{{ product.name }}</span>
+                                <span class="badge bg-primary">${{ product.price }}</span>
+                            </div>
+                            <small class="text-muted">{{ product.category.name|default:"Sin categoría" }}</small>
+                        </button>
+                    </div>
+                    {% empty %}
+                    <div class="col-12">
+                        <p class="text-center text-muted">No hay productos disponibles</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-7">
+        <div class="card">
+            <div class="card-header bg-light">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="mb-0">#<span id="orderNumberDelivery">{{ next_order_number }}</span></h5>
+                        <small class="text-muted" id="orderTimerDelivery">00:00 segundos</small>
+                    </div>
+                    <div>
+                        <span class="badge bg-warning">Pendiente</span>
+                        <span class="badge bg-info">TPV</span>
+                    </div>
+                </div>
+                <div class="mt-1">
+                    <span class="badge bg-success">Entrega</span>
+                </div>
+            </div>
+            
+            <div class="card-body">
+                <div class="mb-2">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text"><i class="fas fa-user"></i></span>
+                        <input type="text" class="form-control" id="clientDelivery" placeholder="Nombre del cliente">
+                    </div>
+                </div>
+                <div class="mb-2">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text"><i class="fas fa-map-marker-alt"></i></span>
+                        <input type="text" class="form-control" id="addressDelivery" placeholder="Dirección de entrega">
+                    </div>
+                </div>
+                <div class="mb-2">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text"><i class="fas fa-phone"></i></span>
+                        <input type="text" class="form-control" id="phoneDelivery" placeholder="Teléfono">
+                    </div>
+                </div>
+                
+                <div id="cartItemsDelivery" style="max-height: 250px; overflow-y: auto;">
+                    <p class="text-center text-muted py-4">Agregue los productos antes de aceptar el pedido.</p>
+                </div>
+            </div>
+            
+            <div class="card-footer bg-light">
+                <div class="row g-2">
+                    <div class="col-6">
+                        <small class="text-muted">Subtotal (<span id="cartCountDelivery">0</span>)</small>
+                        <h6>$<span id="subtotalDelivery">0.00</span></h6>
+                    </div>
+                    <div class="col-6 text-end">
+                        <small class="text-muted">Total</small>
+                        <h4 class="text-primary">$<span id="totalDelivery">0.00</span></h4>
+                    </div>
+                </div>
+                
+                <div class="d-grid gap-2 mt-2">
+                    <button class="btn btn-success" onclick="acceptOrder('delivery')">
+                        <i class="fas fa-check"></i> Aceptar
+                    </button>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-danger flex-fill" onclick="cancelOrder('delivery')">
+                            <i class="fas fa-times"></i> Cancelar
+                        </button>
+                        <button class="btn btn-primary flex-fill" onclick="payOrder('delivery')">
+                            <i class="fas fa-credit-card"></i> Pagar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Variables para Delivery
+    let cartDelivery = [];
+    let timerDelivery = null;
+    let secondsDelivery = 0;
+    
+    document.querySelectorAll('#categoryTabsDelivery .nav-link').forEach(tab => {
+        tab.addEventListener('click', function(e) {
+            e.preventDefault();
+            document.querySelectorAll('#categoryTabsDelivery .nav-link').forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+            
+            const categoryId = this.dataset.category;
+            document.querySelectorAll('#productListDelivery .product-item').forEach(item => {
+                item.style.display = (categoryId === '' || item.dataset.category === categoryId) ? '' : 'none';
+            });
+        });
+    });
+    
+    document.getElementById('searchDelivery').addEventListener('keyup', function() {
+        const search = this.value.toLowerCase();
+        document.querySelectorAll('#productListDelivery .product-item').forEach(item => {
+            const name = item.querySelector('.add-product-delivery').dataset.name.toLowerCase();
+            item.style.display = name.includes(search) ? '' : 'none';
+        });
+    });
+    
+    document.querySelectorAll('#productListDelivery .add-product-delivery').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const id = this.dataset.id;
+            const name = this.dataset.name;
+            const price = parseFloat(this.dataset.price);
+            
+            const existing = cartDelivery.find(item => item.id === id);
+            if (existing) {
+                existing.quantity++;
+            } else {
+                cartDelivery.push({id, name, price, quantity: 1});
+            }
+            updateCartDelivery();
+            startTimerDelivery();
+        });
+    });
+    
+    function updateCartDelivery() {
+        const cartDiv = document.getElementById('cartItemsDelivery');
+        let total = 0;
+        let subtotal = 0;
+        
+        if (cartDelivery.length === 0) {
+            cartDiv.innerHTML = '<p class="text-center text-muted py-4">Agregue los productos antes de aceptar el pedido.</p>';
+            document.getElementById('totalDelivery').textContent = '0.00';
+            document.getElementById('subtotalDelivery').textContent = '0.00';
+            document.getElementById('cartCountDelivery').textContent = '0';
+            return;
+        }
+        
+        let html = '';
+        cartDelivery.forEach((item, index) => {
+            const itemTotal = item.price * item.quantity;
+            subtotal += itemTotal;
+            total += itemTotal;
+            html += `
+                <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+                    <div class="flex-grow-1">
+                        <span class="fw-bold">${item.name}</span>
+                        <br>
+                        <small class="text-muted">$${item.price} x ${item.quantity}</small>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-primary">$${itemTotal.toFixed(2)}</span>
+                        <button class="btn btn-sm btn-outline-danger" onclick="removeItemDelivery(${index})">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+        
+        cartDiv.innerHTML = html;
+        document.getElementById('totalDelivery').textContent = total.toFixed(2);
+        document.getElementById('subtotalDelivery').textContent = subtotal.toFixed(2);
+        document.getElementById('cartCountDelivery').textContent = cartDelivery.reduce((sum, item) => sum + item.quantity, 0);
+    }
+    
+    function removeItemDelivery(index) {
+        cartDelivery.splice(index, 1);
+        updateCartDelivery();
+    }
+    
+    function startTimerDelivery() {
+        if (timerDelivery) return;
+        timerDelivery = setInterval(() => {
+            secondsDelivery++;
+            const mins = String(Math.floor(secondsDelivery / 60)).padStart(2, '0');
+            const secs = String(secondsDelivery % 60).padStart(2, '0');
+            document.getElementById('orderTimerDelivery').textContent = `${mins}:${secs} segundos`;
+        }, 1000);
+    }
+    
+    function resetOrderDelivery() {
+        cartDelivery = [];
+        secondsDelivery = 0;
+        if (timerDelivery) {
+            clearInterval(timerDelivery);
+            timerDelivery = null;
+        }
+        document.getElementById('orderTimerDelivery').textContent = '00:00 segundos';
+        updateCartDelivery();
+    }
+    
+    // Las funciones acceptOrder, payOrder, cancelOrder, searchClient se reutilizan desde dine_in
+</script>

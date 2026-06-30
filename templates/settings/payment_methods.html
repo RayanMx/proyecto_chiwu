@@ -1,0 +1,116 @@
+{% extends 'layouts/base.html' %}
+{% load static %}
+
+{% block title %}Métodos de pago - Chiwu{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4><i class="fas fa-credit-card"></i> Métodos de pago</h4>
+</div>
+
+<!-- Pagos manuales -->
+<div class="card mb-3">
+    <div class="card-header bg-light">
+        <h5><i class="fas fa-hand-holding-usd"></i> Pagos manuales</h5>
+        <small class="text-muted">Tus clientes pueden realizar el pago de su pedido en efectivo o en persona</small>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            {% for method in methods %}
+            {% if method.type == 'manual' %}
+            <div class="col-md-3 mb-2">
+                <div class="card {% if method.is_active %}border-success{% else %}border-danger{% endif %}">
+                    <div class="card-body text-center">
+                        <i class="fas fa-{{ method.icon|default:'circle' }} fa-2x {% if method.is_active %}text-success{% else %}text-muted{% endif %}"></i>
+                        <h6>{{ method.name }}</h6>
+                        <small class="text-muted">
+                            {% if method.is_active %}
+                                <span class="badge bg-success">Activo</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Inactivo</span>
+                            {% endif %}
+                        </small>
+                        <br>
+                        <small class="text-muted">
+                            {% if method.is_visible_pos %}PDV{% endif %}
+                            {% if method.is_visible_menu %} Menú digital{% endif %}
+                        </small>
+                        <br>
+                        <button class="btn btn-sm {% if method.is_active %}btn-danger{% else %}btn-success{% endif %} mt-2 toggle-method" data-id="{{ method.id }}">
+                            {% if method.is_active %}Desactivar{% else %}Activar{% endif %}
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Pagos en línea -->
+<div class="card mb-3">
+    <div class="card-header bg-light">
+        <h5><i class="fas fa-globe"></i> Pagos en línea</h5>
+        <small class="text-muted">Tus clientes pueden pagar su pedido a través de Internet</small>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-warning">
+            <i class="fas fa-info-circle"></i> 
+            <strong>PAGOS CON TARJETA</strong> - Inactivo
+            <br>
+            <small>Tarifa del 2.95% por transacción. ¡Activa tu cuenta para recibir pagos con tarjeta!</small>
+        </div>
+        
+        <div class="row">
+            {% for method in methods %}
+            {% if method.type == 'online' %}
+            <div class="col-md-2 col-sm-3 mb-2">
+                <div class="card {% if method.is_active %}border-success{% else %}border-light{% endif %}">
+                    <div class="card-body text-center">
+                        <i class="fas fa-{{ method.icon|default:'credit-card' }} fa-2x {% if method.is_active %}text-success{% else %}text-muted{% endif %}"></i>
+                        <h6>{{ method.name }}</h6>
+                        <button class="btn btn-sm {% if method.is_active %}btn-danger{% else %}btn-success{% endif %} toggle-method" data-id="{{ method.id }}">
+                            {% if method.is_active %}Desactivar{% else %}Activar{% endif %}
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            {% endfor %}
+            
+            <div class="col-md-2 col-sm-3 mb-2">
+                <div class="card border-dashed">
+                    <div class="card-body text-center">
+                        <i class="fas fa-plus-circle fa-2x text-muted"></i>
+                        <h6>Agregar método</h6>
+                        <button class="btn btn-sm btn-outline-primary">Agregar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.querySelectorAll('.toggle-method').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const id = this.dataset.id;
+            fetch(`/settings/toggle-payment/${id}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    location.reload();
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}

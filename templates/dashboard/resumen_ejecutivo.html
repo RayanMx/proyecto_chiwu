@@ -1,0 +1,278 @@
+{% extends 'layouts/base.html' %}
+{% load static %}
+
+{% block title %}Resumen Ejecutivo - Chiwu POS{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    
+    <!-- HEADER: Saludo + Botón Abrir Caja -->
+    <div class="row mb-4 align-items-center">
+        <div class="col-md-7">
+            <h1 class="display-6 fw-bold mb-0">👋 ¡Hola, {{ nombre_usuario }}!</h1>
+            <p class="text-muted mt-1">Resumen de operaciones del día <strong>{{ fecha_ayer }}</strong></p>
+        </div>
+        <div class="col-md-5 text-md-end mt-3 mt-md-0">
+            {% if caja_abierta_hoy %}
+                <div class="d-inline-block me-3">
+                    <span class="badge bg-success fs-6 p-2">
+                        <i class="fas fa-check-circle me-1"></i> Caja abierta
+                    </span>
+                </div>
+                <a href="{% url 'sales:pos' %}" class="btn btn-primary btn-lg px-4">
+                    <i class="fas fa-cash-register me-2"></i>Ir a PDV
+                </a>
+            {% else %}
+                <a href="{% url 'sales:open_cash' %}" class="btn btn-success btn-lg px-5 py-2 shadow-sm">
+                    <i class="fas fa-cash-register me-2"></i>Abrir Caja
+                </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- TARJETAS PRINCIPALES (KPI's) -->
+    <div class="row g-4 mb-4">
+        <!-- Tarjeta 1: Ventas Ayer -->
+        <div class="col-xl-3 col-lg-6 col-md-6">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="bg-primary bg-opacity-10 p-3 rounded-3 me-3">
+                            <i class="fas fa-chart-line fa-2x text-primary"></i>
+                        </div>
+                        <div>
+                            <h6 class="card-subtitle text-muted mb-1">Ventas Ayer</h6>
+                            <h3 class="card-title fw-bold mb-0">${{ total_ventas_ayer|floatformat:2 }}</h3>
+                            <small class="text-muted">{{ total_pedidos_ayer }} pedidos</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer bg-transparent border-0 pt-0">
+                    {% if variacion_porcentual > 0 %}
+                        <span class="text-success"><i class="fas fa-arrow-up me-1"></i>+{{ variacion_porcentual }}% vs antier</span>
+                    {% elif variacion_porcentual < 0 %}
+                        <span class="text-danger"><i class="fas fa-arrow-down me-1"></i>{{ variacion_porcentual }}% vs antier</span>
+                    {% else %}
+                        <span class="text-muted"><i class="fas fa-minus me-1"></i>Sin cambios</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Tarjeta 2: Cierre de Caja -->
+        <div class="col-xl-3 col-lg-6 col-md-6">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="bg-warning bg-opacity-10 p-3 rounded-3 me-3">
+                            <i class="fas fa-coins fa-2x text-warning"></i>
+                        </div>
+                        <div>
+                            <h6 class="card-subtitle text-muted mb-1">Cierre de Caja</h6>
+                            <h3 class="card-title fw-bold mb-0">${{ total_caja_ayer|floatformat:2 }}</h3>
+                            <small class="text-muted">Total día anterior</small>
+                        </div>
+                    </div>
+                </div>
+                {% if ultimo_cierre %}
+                <div class="card-footer bg-transparent border-0 pt-0">
+                    <small class="text-muted">
+                        <i class="far fa-clock me-1"></i>Cerrado: {{ ultimo_cierre.closed_at|date:"H:i" }}
+                    </small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Tarjeta 3: Stock Crítico -->
+        <div class="col-xl-3 col-lg-6 col-md-6">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="bg-danger bg-opacity-10 p-3 rounded-3 me-3">
+                            <i class="fas fa-box fa-2x text-danger"></i>
+                        </div>
+                        <div>
+                            <h6 class="card-subtitle text-muted mb-1">Inventario</h6>
+                            <div>
+                                {% if stock_critico > 0 %}
+                                    <span class="badge bg-danger fs-6 me-1">{{ stock_critico }}</span>
+                                    <span class="text-danger fw-bold">Sin stock</span>
+                                {% else %}
+                                    <span class="text-success"><i class="fas fa-check-circle"></i> Stock OK</span>
+                                {% endif %}
+                            </div>
+                            {% if stock_bajo > 0 %}
+                                <small class="text-warning">{{ stock_bajo }} productos con stock bajo</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer bg-transparent border-0 pt-0">
+                    <small class="text-muted">{{ total_productos }} productos activos</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tarjeta 4: Estado General -->
+        <div class="col-xl-3 col-lg-6 col-md-6">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="bg-info bg-opacity-10 p-3 rounded-3 me-3">
+                            <i class="fas fa-store fa-2x text-info"></i>
+                        </div>
+                        <div>
+                            <h6 class="card-subtitle text-muted mb-1">Estado General</h6>
+                            <div>
+                                {% if caja_abierta_hoy %}
+                                    <span class="text-success"><i class="fas fa-circle fs-6 me-1"></i>Operando</span>
+                                {% else %}
+                                    <span class="text-warning"><i class="fas fa-circle fs-6 me-1"></i>Sin abrir</span>
+                                {% endif %}
+                            </div>
+                            <small class="text-muted">
+                                {% if total_pedidos_ayer > 0 %}
+                                    {{ total_pedidos_ayer }} pedidos ayer
+                                {% else %}
+                                    Sin pedidos ayer
+                                {% endif %}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ALERTAS DE STOCK (solo si hay productos críticos) -->
+    {% if stock_critico > 0 or stock_bajo > 0 %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center flex-wrap gap-2">
+                        <i class="fas fa-exclamation-triangle text-warning fs-4 me-2"></i>
+                        <h6 class="mb-0 me-3">⚠️ Alertas de inventario:</h6>
+                        {% if stock_critico > 0 %}
+                            <span class="badge bg-danger me-2">{{ stock_critico }} productos SIN STOCK</span>
+                        {% endif %}
+                        {% if stock_bajo > 0 %}
+                            <span class="badge bg-warning text-dark me-2">{{ stock_bajo }} productos con stock bajo</span>
+                        {% endif %}
+                        {% if stock_medio > 0 %}
+                            <span class="badge bg-info text-dark">{{ stock_medio }} productos con stock medio</span>
+                        {% endif %}
+                        <a href="{% url 'products:inventory' %}" class="btn btn-sm btn-outline-primary ms-auto">
+                            <i class="fas fa-arrow-right me-1"></i>Ver inventario
+                        </a>
+                    </div>
+                    {% if productos_bajo_stock %}
+                    <div class="mt-2">
+                        <small class="text-muted">Productos con menor stock:</small>
+                        <div class="d-flex flex-wrap gap-2 mt-1">
+                            {% for producto in productos_bajo_stock %}
+                                <span class="badge bg-light text-dark border">
+                                    {{ producto.name }}: 
+                                    {% if producto.stock == 0 %}
+                                        <span class="text-danger fw-bold">{{ producto.stock }}</span>
+                                    {% elif producto.stock <= 5 %}
+                                        <span class="text-warning fw-bold">{{ producto.stock }}</span>
+                                    {% else %}
+                                        {{ producto.stock }}
+                                    {% endif %}
+                                </span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- ÚLTIMAS VENTAS y ACCIONES RÁPIDAS -->
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-history me-2"></i>Últimas Ventas</h5>
+                    <a href="{% url 'sales:history' %}" class="btn btn-sm btn-outline-secondary">
+                        Ver todas <i class="fas fa-arrow-right ms-1"></i>
+                    </a>
+                </div>
+                <div class="card-body p-0">
+                    {% if recent_sales %}
+                        <div class="list-group list-group-flush">
+                            {% for sale in recent_sales %}
+                                <div class="list-group-item d-flex justify-content-between align-items-center py-3">
+                                    <div>
+                                        <span class="fw-bold">#{{ sale.id }}</span>
+                                        <span class="badge bg-{% if sale.service_type == 'dine_in' %}primary{% elif sale.service_type == 'takeaway' %}warning{% else %}info{% endif %} ms-2">
+                                            {{ sale.get_service_type_display }}
+                                        </span>
+                                        <small class="text-muted ms-2">
+                                            <i class="far fa-clock me-1"></i>{{ sale.created_at|date:"d/m/Y H:i" }}
+                                        </small>
+                                    </div>
+                                    <div>
+                                        <span class="fw-bold">${{ sale.total|floatformat:2 }}</span>
+                                        <span class="badge bg-{% if sale.status == 'completed' %}success{% elif sale.status == 'pending' %}secondary{% elif sale.status == 'preparing' %}info{% else %}danger{% endif %} ms-2">
+                                            {{ sale.get_status_display }}
+                                        </span>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4 text-muted">
+                            <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
+                            No hay ventas recientes
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent border-0">
+                    <h5 class="mb-0"><i class="fas fa-bolt me-2"></i>Acciones Rápidas</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'sales:pos' %}" class="btn btn-primary">
+                            <i class="fas fa-shopping-cart me-2"></i>Nueva Venta (PDV)
+                        </a>
+                        <a href="{% url 'sales:table_list' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-chair me-2"></i>Gestión de Mesas
+                        </a>
+                        <a href="{% url 'sales:reports' %}" class="btn btn-outline-info">
+                            <i class="fas fa-file-alt me-2"></i>Ver Reportes
+                        </a>
+                        <a href="{% url 'products:inventory' %}" class="btn btn-outline-warning">
+                            <i class="fas fa-boxes me-2"></i>Gestionar Inventario
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Pequeño script para dar feedback al abrir caja
+    document.addEventListener('DOMContentLoaded', function() {
+        const abrirCajaBtn = document.querySelector('a[href*="open-cash"]');
+        if (abrirCajaBtn) {
+            abrirCajaBtn.addEventListener('click', function(e) {
+                // Si quieres mostrar un loading o algo, aquí puedes hacerlo
+                this.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Abriendo...';
+            });
+        }
+    });
+</script>
+{% endblock %}

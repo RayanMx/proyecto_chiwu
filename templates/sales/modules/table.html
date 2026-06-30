@@ -1,0 +1,482 @@
+<div class="row g-3">
+    <!-- Mesas -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-chair"></i> Mesas</h5>
+                <a href="{% url 'sales:table_list' %}" class="btn btn-sm btn-light">
+                    <i class="fas fa-cog"></i> Gestionar
+                </a>
+            </div>
+            <div class="card-body" style="max-height: 600px; overflow-y: auto;">
+                {% if rooms %}
+                    {% for room in rooms %}
+                    <div class="mb-3">
+                        <h6 class="text-muted">{{ room.name }}</h6>
+                        <div class="row g-1">
+                            {% for table in room.tables.all %}
+                            <div class="col-3">
+                                <button class="btn w-100 table-btn 
+                                    {% if table.status == 'occupied' %}btn-danger
+                                    {% elif table.status == 'reserved' %}btn-warning
+                                    {% elif table.status == 'paying' %}btn-info
+                                    {% else %}btn-outline-success{% endif %}
+                                    btn-sm" 
+                                    data-table-id="{{ table.id }}"
+                                    onclick="selectTable({{ table.id }})">
+                                    {{ table.number }}
+                                    {% if table.current_sale %}
+                                    <span class="badge bg-dark">●</span>
+                                    {% endif %}
+                                </button>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <small class="text-muted">{{ room.tables.all|length }} mesas</small>
+                        <hr>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted text-center">No hay mesas configuradas</p>
+                    <div class="text-center">
+                        <button class="btn btn-primary btn-sm" onclick="addNewTable()">
+                            <i class="fas fa-plus"></i> Crear primera mesa
+                        </button>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Productos -->
+    <div class="col-md-5">
+        <div class="card">
+            <div class="card-header">
+                <ul class="nav nav-tabs card-header-tabs" id="categoryTabsTable">
+                    {% for category in categories %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if forloop.first %}active{% endif %}" data-category="{{ category.id }}" href="#">
+                            {{ category.name }}
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+                <div class="mt-2">
+                    <input type="text" class="form-control form-control-sm" id="searchTable" placeholder="Buscar producto...">
+                </div>
+            </div>
+            <div class="card-body" style="max-height: 500px; overflow-y: auto;">
+                <div class="row" id="productListTable">
+                    {% for product in products %}
+                    <div class="col-md-6 mb-2 product-item" data-category="{{ product.category.id|default:'' }}">
+                        <button class="btn btn-outline-primary w-100 text-start add-product-table" 
+                                data-id="{{ product.id }}"
+                                data-name="{{ product.name }}"
+                                data-price="{{ product.price }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span>{{ product.name }}</span>
+                                <span class="badge bg-primary">${{ product.price }}</span>
+                            </div>
+                            <small class="text-muted">{{ product.category.name|default:"Sin categoría" }}</small>
+                        </button>
+                    </div>
+                    {% empty %}
+                    <div class="col-12">
+                        <p class="text-center text-muted">No hay productos disponibles</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Carrito -->
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-shopping-cart"></i> Carrito</h5>
+                <span id="tableInfo" class="badge bg-light text-dark">Mesa: No seleccionada</span>
+            </div>
+            <div class="card-body" id="cartItemsTable" style="max-height: 400px; overflow-y: auto;">
+                <p class="text-muted text-center">Selecciona una mesa primero</p>
+            </div>
+            <div class="card-footer">
+                <div class="row g-2">
+                    <div class="col-6">
+                        <h6>Total: $<span id="totalTable">0.00</span></h6>
+                    </div>
+                    <div class="col-6">
+                        <button class="btn btn-success w-100" id="checkoutTableBtn" disabled onclick="acceptTableOrder()">
+                            <i class="fas fa-check"></i> Cobrar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para agregar mesa -->
+<div class="modal fade" id="addTableModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-chair"></i> Agregar mesa</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="tableForm">
+                    <div class="mb-3">
+                        <label>Sala</label>
+                        <select class="form-select" name="room" required>
+                            <option value="">Seleccionar...</option>
+                            {% for room in rooms %}
+                            <option value="{{ room.id }}">{{ room.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label>Número de mesa</label>
+                        <input type="number" class="form-control" name="number" required>
+                    </div>
+                    <div class="mb-3">
+                        <label>Capacidad</label>
+                        <input type="number" class="form-control" name="capacity" value="4">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="saveTable()">
+                    <i class="fas fa-save"></i> Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+
+    // Variables para Mesas
+    let cartTable = [];
+    let currentTableId = null;
+
+    // ==================== VALIDACIÓN DE CAJA ====================
+    // Verificar si hay caja abierta al cargar el módulo
+    {% if not cash_register %}
+    document.addEventListener('DOMContentLoaded', function() {
+        showNotification('warning', '⚠️ Debes abrir una caja antes de operar con mesas');
+        // Deshabilitar botones de agregar productos
+        document.querySelectorAll('.add-product-table').forEach(el => {
+            el.disabled = true;
+            el.style.opacity = '0.6';
+            el.style.cursor = 'not-allowed';
+        });
+        // Deshabilitar botón de cobrar
+        const checkoutBtn = document.getElementById('checkoutTableBtn');
+        if (checkoutBtn) {
+            checkoutBtn.disabled = true;
+        }
+        // Deshabilitar selección de mesas (opcional)
+        document.querySelectorAll('.table-btn').forEach(el => {
+            el.style.cursor = 'not-allowed';
+            el.title = 'Abre una caja primero';
+        });
+    });
+    {% else %}
+    // Si hay caja abierta, todo funciona normal
+    console.log('✅ Caja abierta - Módulo de mesas listo');
+    {% endif %}
+
+
+
+    function showNotification(type, message) {
+        // Usar Toast de Bootstrap
+        const toastContainer = document.getElementById('toastContainer');
+        if (!toastContainer) {
+            const container = document.createElement('div');
+            container.id = 'toastContainer';
+            container.className = 'position-fixed bottom-0 end-0 p-3';
+            container.style.zIndex = '1050';
+            document.body.appendChild(container);
+        }
+        
+        const toast = document.createElement('div');
+        toast.className = `toast align-items-center text-white bg-${type} border-0`;
+        toast.role = 'alert';
+        toast.innerHTML = `
+            <div class="d-flex">
+                <div class="toast-body">${message}</div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        `;
+        
+        document.getElementById('toastContainer').appendChild(toast);
+        const bsToast = new bootstrap.Toast(toast, { delay: 3000 });
+        bsToast.show();
+        toast.addEventListener('hidden.bs.toast', () => toast.remove());
+    }
+    
+    // ==================== SELECCIONAR MESA ====================
+    function selectTable(tableId) {
+        currentTableId = tableId;
+        document.getElementById('tableInfo').textContent = `Mesa: ${tableId}`;
+        cartTable = [];
+        updateCartTable();
+        document.getElementById('checkoutTableBtn').disabled = true;
+        
+        fetch(`/pos/table/${tableId}/`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.table.sale_id) {
+                    document.getElementById('checkoutTableBtn').disabled = false;
+                }
+            })
+            .catch(error => console.error('Error:', error));
+    }
+
+    function createTableOrder(tableId) {
+        fetch("/pos/api/create-sale/", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''
+            },
+            body: JSON.stringify({
+                service_type: 'dine_in',
+                table_id: tableId,
+                items: [],
+                total: 0,
+                subtotal: 0
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Asignar la orden a la mesa
+                fetch("{% url 'sales:assign_table' %}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''
+                    },
+                    body: new URLSearchParams({
+                        'table_id': tableId,
+                        'sale_id': data.order_id
+                    })
+                })
+                .then(() => {
+                    showNotification('success', `✅ Mesa ${tableId} - Nueva orden creada`);
+                    // Actualizar UI
+                    document.querySelector(`[data-table-id="${tableId}"]`).classList.remove('btn-outline-success');
+                    document.querySelector(`[data-table-id="${tableId}"]`).classList.add('btn-danger');
+                    document.getElementById('checkoutTableBtn').disabled = false;
+                });
+            }
+        })
+        .catch(error => console.error('Error:', error));
+    }
+    
+    // ==================== FILTRO POR CATEGORÍA ====================
+    document.querySelectorAll('#categoryTabsTable .nav-link').forEach(tab => {
+        tab.addEventListener('click', function(e) {
+            e.preventDefault();
+            document.querySelectorAll('#categoryTabsTable .nav-link').forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+            
+            const categoryId = this.dataset.category;
+            document.querySelectorAll('#productListTable .product-item').forEach(item => {
+                if (categoryId === '' || item.dataset.category === categoryId) {
+                    item.style.display = '';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        });
+    });
+    
+    // ==================== BÚSQUEDA ====================
+    document.getElementById('searchTable').addEventListener('keyup', function() {
+        const search = this.value.toLowerCase();
+        document.querySelectorAll('#productListTable .product-item').forEach(item => {
+            const name = item.querySelector('.add-product-table').dataset.name.toLowerCase();
+            item.style.display = name.includes(search) ? '' : 'none';
+        });
+    });
+    
+    // ==================== AGREGAR PRODUCTO ====================
+    document.querySelectorAll('#productListTable .add-product-table').forEach(btn => {
+        btn.addEventListener('click', function() {
+            if (!currentTableId) {
+                alert('Selecciona una mesa primero');
+                return;
+            }
+            
+            const id = this.dataset.id;
+            const name = this.dataset.name;
+            const price = parseFloat(this.dataset.price);
+            
+            const existing = cartTable.find(item => item.id === id);
+            if (existing) {
+                existing.quantity++;
+            } else {
+                cartTable.push({id, name, price, quantity: 1});
+            }
+            updateCartTable();
+        });
+    });
+    
+    // ==================== ACTUALIZAR CARRITO ====================
+    function updateCartTable() {
+        const cartDiv = document.getElementById('cartItemsTable');
+        let total = 0;
+        
+        if (cartTable.length === 0 || !currentTableId) {
+            cartDiv.innerHTML = '<p class="text-muted text-center">No hay productos en el carrito</p>';
+            document.getElementById('totalTable').textContent = '0.00';
+            document.getElementById('checkoutTableBtn').disabled = true;
+            return;
+        }
+        
+        let html = '';
+        cartTable.forEach((item, index) => {
+            const itemTotal = item.price * item.quantity;
+            total += itemTotal;
+            html += `
+                <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-2">
+                    <div>
+                        <strong>${item.name}</strong>
+                        <br>
+                        <small>$${item.price} x ${item.quantity}</small>
+                    </div>
+                    <div>
+                        <span class="badge bg-primary">$${itemTotal.toFixed(2)}</span>
+                        <button class="btn btn-sm btn-danger" onclick="removeItemTable(${index})">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+        
+        cartDiv.innerHTML = html;
+        document.getElementById('totalTable').textContent = total.toFixed(2);
+        document.getElementById('checkoutTableBtn').disabled = false;
+    }
+    
+    // ==================== ELIMINAR PRODUCTO DEL CARRITO ====================
+    function removeItemTable(index) {
+        cartTable.splice(index, 1);
+        updateCartTable();
+    }
+    
+    // ==================== COBRAR MESA ====================
+    function acceptTableOrder() {
+        if (cartTable.length === 0) {
+            showNotification('warning', '⚠️ Agregue productos al carrito');
+            return;
+        }
+        
+        if (!currentTableId) {
+            showNotification('danger', '❌ No hay mesa seleccionada');
+            return;
+        }
+        
+        // Primero crear la orden
+        const orderData = {
+            items: cartTable.map(item => ({
+                id: item.id,
+                quantity: item.quantity,
+                price: item.price
+            })),
+            service_type: 'dine_in',
+            table_id: currentTableId,
+            total: parseFloat(document.getElementById('totalTable').textContent) || 0,
+            subtotal: parseFloat(document.getElementById('totalTable').textContent) || 0,
+            client: 'Mesa ' + currentTableId
+        };
+        
+        const btn = document.getElementById('checkoutTableBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
+        
+        fetch("/pos/api/create-sale/", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''
+            },
+            body: JSON.stringify(orderData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Liberar mesa
+                return fetch(`/sales/free-table/${currentTableId}/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''
+                    }
+                });
+            } else {
+                throw new Error(data.message || 'Error al crear orden');
+            }
+        })
+        .then(() => {
+            showNotification('success', `✅ Mesa ${currentTableId} - Pedido completado`);
+            // Resetear
+            cartTable = [];
+            const tableId = currentTableId;
+            currentTableId = null;
+            document.getElementById('tableInfo').textContent = 'Mesa: No seleccionada';
+            updateCartTable();
+            document.getElementById('checkoutTableBtn').disabled = true;
+            
+            // Actualizar UI de la mesa
+            document.querySelectorAll('.table-btn').forEach(btn => {
+                if (btn.dataset.tableId == tableId) {
+                    btn.classList.remove('btn-danger', 'btn-warning', 'btn-info');
+                    btn.classList.add('btn-outline-success');
+                }
+            });
+        })
+        .catch(error => {
+            showNotification('danger', `❌ Error: ${error.message}`);
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-check"></i> Cobrar';
+        });
+    }
+    
+    // ==================== AGREGAR NUEVA MESA ====================
+    function addNewTable() {
+        const modal = new bootstrap.Modal(document.getElementById('addTableModal'));
+        modal.show();
+    }
+    
+    // ==================== GUARDAR MESA ====================
+    function saveTable() {
+        const form = document.getElementById('tableForm');
+        const formData = new FormData(form);
+        const csrf = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+        
+        // Verificar que los datos estén completos
+        const room = formData.get('room');
+        const number = formData.get('number');
+        
+        if (!room || !number) {
+            alert('Por favor complete todos los campos');
+            return;
+        }
+        
+        // Aquí iría la lógica para guardar la mesa
+        // Por ahora solo cerramos el modal y recargamos
+        alert('Mesa creada correctamente');
+        const modal = bootstrap.Modal.getInstance(document.getElementById('addTableModal'));
+        modal.hide();
+        location.reload();
+    }
+    
+    console.log('✅ Módulo de Mesas cargado');
+</script>

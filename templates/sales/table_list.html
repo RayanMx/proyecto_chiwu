@@ -1,0 +1,731 @@
+{% extends 'layouts/base.html' %}
+{% load static %}
+
+{% block title %}Mesas - Chiwu{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* ===== ESTILOS DE MESAS ===== */
+    .table-management {
+        padding: 20px 0;
+    }
+
+    .room-section {
+        margin-bottom: 30px;
+        background: white;
+        border-radius: 16px;
+        padding: 20px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    }
+
+    .room-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 2px solid #f0f0f0;
+    }
+
+    .room-header h5 {
+        font-weight: 700;
+        color: #2D3436;
+        margin: 0;
+    }
+
+    .room-header .room-actions {
+        display: flex;
+        gap: 8px;
+    }
+
+    .table-grid-admin {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+        gap: 16px;
+    }
+
+    .table-card-admin {
+        background: white;
+        border: 2px solid #e8e8e8;
+        border-radius: 12px;
+        padding: 16px 12px;
+        text-align: center;
+        transition: all 0.3s ease;
+        position: relative;
+    }
+
+    .table-card-admin:hover {
+        border-color: #6C63FF;
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(108, 99, 255, 0.12);
+    }
+
+    .table-card-admin .table-number {
+        font-size: 24px;
+        font-weight: 800;
+        color: #2D3436;
+        display: block;
+    }
+
+    .table-card-admin .table-icon {
+        font-size: 32px;
+        margin-bottom: 8px;
+        display: block;
+    }
+
+    .table-card-admin .table-icon.free {
+        color: #2ECC71;
+    }
+
+    .table-card-admin .table-icon.occupied {
+        color: #E74C3C;
+    }
+
+    .table-card-admin .table-icon.reserved {
+        color: #F39C12;
+    }
+
+    .table-card-admin .table-status {
+        font-size: 11px;
+        padding: 4px 12px;
+        border-radius: 50px;
+        display: inline-block;
+        margin-top: 6px;
+        font-weight: 600;
+    }
+
+    .table-card-admin .table-status.free {
+        background: #E8F5E9;
+        color: #2E7D32;
+    }
+
+    .table-card-admin .table-status.occupied {
+        background: #FFEBEE;
+        color: #C62828;
+    }
+
+    .table-card-admin .table-status.reserved {
+        background: #FFF3E0;
+        color: #E65100;
+    }
+
+    .table-card-admin .table-capacity {
+        font-size: 12px;
+        color: #636E72;
+        margin-top: 4px;
+        display: block;
+    }
+
+    .table-card-admin .table-actions {
+        margin-top: 10px;
+        display: flex;
+        justify-content: center;
+        gap: 6px;
+    }
+
+    .table-card-admin .table-actions .btn {
+        padding: 4px 10px;
+        font-size: 11px;
+        border-radius: 6px;
+        transition: all 0.3s ease;
+    }
+
+    .table-card-admin .table-actions .btn-edit {
+        background: #E3F2FD;
+        color: #0D47A1;
+        border: none;
+    }
+
+    .table-card-admin .table-actions .btn-edit:hover {
+        background: #0D47A1;
+        color: white;
+    }
+
+    .table-card-admin .table-actions .btn-delete {
+        background: #FFEBEE;
+        color: #C62828;
+        border: none;
+    }
+
+    .table-card-admin .table-actions .btn-delete:hover {
+        background: #C62828;
+        color: white;
+    }
+
+    /* ===== MODAL ===== */
+    .modal-content {
+        border-radius: 16px;
+        border: none;
+    }
+
+    .modal-header {
+        border-radius: 16px 16px 0 0;
+        background: #6C63FF;
+        color: white;
+    }
+
+    .modal-header .btn-close {
+        filter: brightness(0) invert(1);
+    }
+
+    .modal-footer {
+        border-top: none;
+        padding: 20px;
+    }
+
+    .modal-footer .btn-primary {
+        background: #6C63FF;
+        border: none;
+        border-radius: 8px;
+        padding: 10px 30px;
+        font-weight: 600;
+    }
+
+    .modal-footer .btn-primary:hover {
+        background: #5A52D5;
+        transform: translateY(-2px);
+    }
+
+    .modal-footer .btn-secondary {
+        border-radius: 8px;
+        padding: 10px 30px;
+        font-weight: 600;
+    }
+
+    /* ===== BOTÓN AGREGAR ===== */
+    .btn-add-table {
+        background: #6C63FF;
+        color: white;
+        border: none;
+        border-radius: 10px;
+        padding: 10px 24px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .btn-add-table:hover {
+        background: #5A52D5;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(108, 99, 255, 0.3);
+        color: white;
+    }
+
+    .btn-add-room {
+        background: #2ECC71;
+        color: white;
+        border: none;
+        border-radius: 10px;
+        padding: 10px 24px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .btn-add-room:hover {
+        background: #27AE60;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(46, 204, 113, 0.3);
+        color: white;
+    }
+
+    .btn-danger-outline {
+        background: transparent;
+        color: #E74C3C;
+        border: 2px solid #E74C3C;
+        border-radius: 8px;
+        padding: 4px 12px;
+        font-size: 12px;
+        transition: all 0.3s ease;
+    }
+
+    .btn-danger-outline:hover {
+        background: #E74C3C;
+        color: white;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 40px 20px;
+        color: #636E72;
+    }
+
+    .empty-state i {
+        font-size: 48px;
+        color: #dfe6e9;
+        margin-bottom: 16px;
+        display: block;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+    <!-- Token CSRF para AJAX -->
+    <input type="hidden" id="csrfToken" value="{{ csrf_token }}">
+    <script>
+        window.CSRF_TOKEN = "{{ csrf_token|escapejs }}";
+        console.log('✅ CSRF Token cargado en table_list:', window.CSRF_TOKEN);
+    </script>
+
+
+<div class="table-management">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3><i class="fas fa-chair text-primary"></i> Mesas</h3>
+        <div class="d-flex gap-2">
+            <button class="btn btn-warning btn-sm" onclick="cleanupTables()" title="Limpiar mesas huérfanas">
+                <i class="fas fa-broom"></i> Limpiar Mesas
+            </button>
+            <button class="btn-add-room" onclick="openAddRoomModal()">
+                <i class="fas fa-plus"></i> Nueva Sala
+            </button>
+            <button class="btn-add-table" onclick="openAddTableModal()">
+                <i class="fas fa-plus"></i> Agregar Mesa
+            </button>
+        </div>
+    </div>
+
+    {% if rooms %}
+        {% for room in rooms %}
+        <div class="room-section">
+            <div class="room-header">
+                <h5><i class="fas fa-door-open text-primary"></i> {{ room.name }}</h5>
+                <div class="room-actions">
+                    <button class="btn btn-sm btn-outline-primary" onclick="editRoom({{ room.id }})">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-sm btn-danger-outline" onclick="deleteRoom({{ room.id }})">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="table-grid-admin">
+                {% for table in room.tables.all %}
+                <div class="table-card-admin" data-table-id="{{ table.id }}">
+                    <span class="table-icon {{ table.status }}">
+                        <i class="fas fa-chair"></i>
+                    </span>
+                    <span class="table-number">{{ table.number }}</span>
+                    <span class="table-capacity">
+                        <i class="fas fa-user"></i> {{ table.capacity }} pers.
+                    </span>
+                    <span class="table-status {{ table.status }}">
+                        {% if table.status == 'occupied' %}Ocupada
+                        {% elif table.status == 'reserved' %}Reservada
+                        {% else %}Libre{% endif %}
+                    </span>
+                    <div class="table-actions">
+                        <button class="btn btn-edit" onclick="editTable({{ table.id }})">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-delete" onclick="deleteTable({{ table.id }})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="empty-state">
+                    <i class="fas fa-chair"></i>
+                    <p>No hay mesas en esta sala</p>
+                    <button class="btn btn-sm btn-primary" onclick="openAddTableModal({{ room.id }})">
+                        <i class="fas fa-plus"></i> Agregar mesa
+                    </button>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+    <div class="text-center py-5">
+        <i class="fas fa-chair fa-4x text-muted mb-3"></i>
+        <h5>No hay salas configuradas</h5>
+        <p class="text-muted">Crea una sala para comenzar a agregar mesas</p>
+        <button class="btn btn-primary" onclick="openAddRoomModal()">
+            <i class="fas fa-plus"></i> Crear Sala
+        </button>
+    </div>
+    {% endif %}
+</div>
+
+<!-- ===== MODAL AGREGAR/EDITAR SALA ===== -->
+<div class="modal fade" id="roomModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="roomModalTitle">
+                    <i class="fas fa-door-open"></i> Nueva Sala
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="roomForm">
+                    <input type="hidden" id="roomId" name="room_id">
+                    <div class="mb-3">
+                        <label class="form-label">Nombre de la Sala</label>
+                        <input type="text" class="form-control" id="roomName" name="name" 
+                               placeholder="Ej: Sala Principal" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="saveRoom()">
+                    <i class="fas fa-save"></i> Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== MODAL AGREGAR/EDITAR MESA ===== -->
+<div class="modal fade" id="tableModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="tableModalTitle">
+                    <i class="fas fa-chair"></i> Nueva Mesa
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="tableForm">
+                    <input type="hidden" id="tableId" name="table_id">
+                    <div class="mb-3">
+                        <label class="form-label">Sala</label>
+                        <select class="form-select" id="tableRoom" name="room_id" required>
+                            <option value="">Seleccionar sala...</option>
+                            {% for room in rooms %}
+                            <option value="{{ room.id }}">{{ room.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Número de Mesa</label>
+                        <input type="number" class="form-control" id="tableNumber" name="number" 
+                               placeholder="1" min="1" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Capacidad (personas)</label>
+                        <input type="number" class="form-control" id="tableCapacity" name="capacity" 
+                               value="4" min="1" max="20" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="saveTable()">
+                    <i class="fas fa-save"></i> Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // ==================== VARIABLES ====================
+    let roomModal = null;
+    let tableModal = null;
+    let currentRoomId = null;
+
+    // ==================== INICIALIZACIÓN ====================
+    document.addEventListener('DOMContentLoaded', function() {
+        roomModal = new bootstrap.Modal(document.getElementById('roomModal'));
+        tableModal = new bootstrap.Modal(document.getElementById('tableModal'));
+    });
+
+    // ==================== SALAS ====================
+    function openAddRoomModal() {
+        document.getElementById('roomModalTitle').textContent = 'Nueva Sala';
+        document.getElementById('roomId').value = '';
+        document.getElementById('roomName').value = '';
+        roomModal.show();
+    }
+
+    function editRoom(roomId) {
+        fetch(`/pos/room/${roomId}/detail/`)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('roomModalTitle').textContent = 'Editar Sala';
+                document.getElementById('roomId').value = data.id;
+                document.getElementById('roomName').value = data.name;
+                roomModal.show();
+            })
+            .catch(error => console.error('Error:', error));
+    }
+
+    function saveRoom() {
+        const form = document.getElementById('roomForm');
+        const formData = new FormData(form);
+        const roomId = document.getElementById('roomId').value;
+        const url = roomId ? `/pos/room/${roomId}/update/` : '/pos/room/create/';
+        
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                roomModal.hide();
+                location.reload();
+            } else {
+                alert('Error al guardar la sala');
+            }
+        })
+        .catch(error => console.error('Error:', error));
+    }
+
+    function deleteRoom(roomId) {
+        if (!confirm('¿Eliminar esta sala y todas sus mesas?')) return;
+        
+        fetch(`/pos/room/delete/${roomId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                location.reload();
+            } else {
+                alert('Error al eliminar la sala');
+            }
+        })
+        .catch(error => console.error('Error:', error));
+    }
+
+    // ==================== MESAS ====================
+    function openAddTableModal(roomId = null) {
+        document.getElementById('tableModalTitle').textContent = 'Nueva Mesa';
+        document.getElementById('tableId').value = '';
+        document.getElementById('tableNumber').value = '';
+        document.getElementById('tableCapacity').value = '4';
+        if (roomId) {
+            document.getElementById('tableRoom').value = roomId;
+        }
+        tableModal.show();
+    }
+
+    // ==================== EDITAR MESA ====================
+    function editTable(tableId) {
+        fetch(`/pos/table/${tableId}/detail-api/`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Error al obtener datos');
+                }
+                return response.json();
+            })
+            .then(data => {
+                document.getElementById('tableModalTitle').textContent = 'Editar Mesa';
+                document.getElementById('tableId').value = data.id;
+                document.getElementById('tableRoom').value = data.room;
+                document.getElementById('tableNumber').value = data.number;
+                document.getElementById('tableCapacity').value = data.capacity;
+                tableModal.show();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error al cargar los datos de la mesa');
+            });
+    }
+
+
+    // ==================== GUARDAR MESA ====================
+    function saveTable() {
+        const form = document.getElementById('tableForm');
+        const formData = new FormData(form);
+        const tableId = document.getElementById('tableId').value;
+        const url = tableId ? `/pos/table/update/${tableId}/` : '/pos/table/create/';
+        
+        // Usar window.CSRF_TOKEN (definido al inicio)
+        const csrfToken = window.CSRF_TOKEN || document.getElementById('csrfToken')?.value;
+        
+        if (!csrfToken) {
+            alert('❌ Error: Token CSRF no encontrado. Recarga la página.');
+            console.error('❌ Token CSRF no encontrado');
+            return;
+        }
+        
+        console.log('🔑 Token CSRF usado para guardar:', csrfToken);
+        console.log('💾 Guardando mesa...');
+        
+        // Mostrar datos del formulario en consola para debug
+        for (let [key, value] of formData.entries()) {
+            console.log(`   ${key}: ${value}`);
+        }
+        
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken
+            },
+            body: formData
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.status === 'success') {
+                tableModal.hide();
+                showNotification('success', '✅ Mesa guardada correctamente');
+                setTimeout(() => location.reload(), 500);
+            } else {
+                alert('Error al guardar la mesa: ' + (data.message || 'Desconocido'));
+            }
+        })
+        .catch(error => {
+            console.error('❌ Error:', error);
+            alert('Error de conexión al guardar la mesa: ' + error.message);
+        });
+    }
+
+    // ==================== FUNCIÓN DE NOTIFICACIÓN ====================
+    function showNotification(type, message) {
+        // Crear contenedor si no existe
+        let container = document.querySelector('.toast-container-custom');
+        if (!container) {
+            container = document.createElement('div');
+            container.className = 'toast-container-custom';
+            document.body.appendChild(container);
+        }
+        
+        const toast = document.createElement('div');
+        toast.className = `toast-custom ${type}`;
+        toast.textContent = message;
+        
+        container.appendChild(toast);
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(100px)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
+    // ==================== ELIMINAR MESA ====================
+    
+    function deleteTable(tableId) {
+        if (!confirm('¿Eliminar esta mesa?')) return;
+        
+        // Obtener CSRF token
+        const csrfToken = getCsrfToken();
+        if (!csrfToken) {
+            alert('❌ Error: Token CSRF no encontrado. Recarga la página.');
+            return;
+        }
+        
+        console.log('🗑️ Eliminando mesa:', tableId);
+        
+        fetch(`/pos/table/delete/${tableId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken,
+                'Content-Type': 'application/x-www-form-urlencoded'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.status === 'success') {
+                // Eliminar visualmente sin recargar
+                const card = document.querySelector(`[data-table-id="${tableId}"]`);
+                if (card) {
+                    card.style.transition = 'all 0.3s ease';
+                    card.style.opacity = '0';
+                    card.style.transform = 'scale(0.8)';
+                    setTimeout(() => card.remove(), 300);
+                }
+                showNotification('success', '✅ Mesa eliminada correctamente');
+            } else {
+                alert('Error al eliminar la mesa: ' + (data.message || 'Desconocido'));
+            }
+        })
+        .catch(error => {
+            console.error('❌ Error:', error);
+            alert('Error de conexión al eliminar la mesa: ' + error.message);
+        });
+    }
+
+    // ==================== OBTENER DETALLE DE MESA ====================
+    function getTableDetail(tableId) {
+        fetch(`/pos/table/${tableId}/detail/`)
+            .then(response => response.json())
+            .then(data => {
+                // Usar para editar o mostrar detalles
+                console.log('Detalle de mesa:', data);
+            })
+            .catch(error => console.error('Error:', error));
+    }
+
+
+function cleanupTables() {
+    if (!confirm('¿Limpiar mesas que están ocupadas sin productos?')) return;
+    
+    const csrfToken = window.CSRF_TOKEN || document.getElementById('csrfToken')?.value;
+    
+    if (!csrfToken) {
+        alert('❌ Error: Token CSRF no encontrado.');
+        return;
+    }
+    
+    fetch('/pos/cleanup-tables/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrfToken,
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            showNotification('success', `✅ ${data.cleaned} mesas limpiadas`);
+            setTimeout(() => location.reload(), 500);
+        } else {
+            alert('Error al limpiar mesas');
+        }
+    })
+    .catch(error => {
+        console.error('❌ Error:', error);
+        alert('Error de conexión');
+    });
+}
+
+// ==================== CSRF TOKEN ====================
+function getCsrfToken() {
+    // 1. Primero intentar con la variable global
+    if (window.CSRF_TOKEN && window.CSRF_TOKEN !== '' && window.CSRF_TOKEN !== 'None') {
+        return window.CSRF_TOKEN;
+    }
+    
+    // 2. Buscar en el input oculto
+    const inputToken = document.getElementById('csrfToken');
+    if (inputToken && inputToken.value && inputToken.value !== '') {
+        return inputToken.value;
+    }
+    
+    // 3. Buscar en el meta tag
+    const metaToken = document.querySelector('meta[name="csrf-token"]');
+    if (metaToken && metaToken.getAttribute('content')) {
+        return metaToken.getAttribute('content');
+    }
+    
+    // 4. Buscar en el formulario
+    const formToken = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (formToken && formToken.value) {
+        return formToken.value;
+    }
+    
+    console.error('❌ Token CSRF no encontrado');
+    return null;
+}
+</script>
+{% endblock %}

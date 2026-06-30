@@ -1,0 +1,98 @@
+{% extends 'layouts/base.html' %}
+{% load static %}
+
+{% block title %}Detalle de Venta #{{ sale.id }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3>Venta #{{ sale.id }}</h3>
+        <div>
+            <a href="{% url 'sales:ticket' sale.id %}" class="btn btn-info" target="_blank">
+                <i class="fas fa-print"></i> Ticket
+            </a>
+            <a href="{% url 'sales:history' %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Volver
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Productos</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th>Cantidad</th>
+                                <th>Precio</th>
+                                <th>Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr>
+                                <td>{{ item.product.name }}</td>
+                                <td>{{ item.quantity }}</td>
+                                <td>${{ item.price|floatformat:2 }}</td>
+                                <td>${{ item.subtotal|floatformat:2 }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <th colspan="3" class="text-end">Subtotal:</th>
+                                <th>${{ sale.subtotal|floatformat:2 }}</th>
+                            </tr>
+                            <tr>
+                                <th colspan="3" class="text-end">Descuento:</th>
+                                <th>${{ sale.discount|floatformat:2 }}</th>
+                            </tr>
+                            <tr>
+                                <th colspan="3" class="text-end">Total:</th>
+                                <th>${{ sale.total|floatformat:2 }}</th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Información</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Estado:</strong> 
+                        <span class="badge bg-{% if sale.status == 'completed' %}success{% elif sale.status == 'pending' %}warning{% else %}secondary{% endif %}">
+                            {{ sale.get_status_display }}
+                        </span>
+                    </p>
+                    <p><strong>Mesa:</strong> 
+                        {% if sale.table_orders.first %}
+                            Mesa {{ sale.table_orders.first.number }}
+                        {% else %}
+                            No asignada
+                        {% endif %}
+                    </p>
+                    <p><strong>Cliente:</strong> {{ sale.client.name|default:"Cliente general" }}</p>
+                    <p><strong>Fecha:</strong> {{ sale.created_at|date:"d/m/Y H:i" }}</p>
+                    <p><strong>Notas:</strong> {{ sale.notes|default:"Sin notas" }}</p>
+                </div>
+                <div class="card-footer">
+                    {% if sale.status != 'completed' and sale.status != 'cancelled' %}
+                    <a href="{% url 'sales:process_payment' sale.id %}" class="btn btn-success w-100">
+                        <i class="fas fa-money-bill"></i> Procesar Pago
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

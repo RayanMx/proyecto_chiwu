@@ -1,0 +1,199 @@
+{% extends 'layouts/base.html' %}
+{% load static %}
+
+{% block title %}PDV - Chiwu{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/pos.css' %}">
+{% endblock %}
+
+{% block content %}
+<!-- Token CSRF oculto para AJAX -->
+<input type="hidden" id="csrfToken" value="{{ csrf_token }}">
+
+<div class="pos-container">
+    <!-- ===== PANEL PRINCIPAL ===== -->
+    <div class="pos-main">
+        <!-- Tabs de Módulos -->
+        <div class="module-tabs">
+            <button class="module-tab active" data-module="counter" onclick="switchModule('counter')">
+                <i class="fas fa-utensils"></i> Mostrador
+                <span class="badge-count" id="counterBadge">0</span>
+            </button>
+            <button class="module-tab" data-module="delivery" onclick="switchModule('delivery')">
+                <i class="fas fa-truck"></i> Domicilio
+                <span class="badge-count" id="deliveryBadge">0</span>
+            </button>
+            <button class="module-tab" data-module="tables" onclick="switchModule('tables')">
+                <i class="fas fa-chair"></i> Mesas
+                <span class="badge-count" id="tablesBadge">0</span>
+            </button>
+        </div>
+
+        <!-- Header -->
+        <div class="pos-header">
+            <div class="module-title">
+                <i class="fas fa-utensils"></i>
+                <span id="moduleTitle">Mostrador</span>
+            </div>
+            <div id="moduleBadge" style="display: none;">
+                <span class="module-badge">
+                    <i class="fas fa-info-circle"></i>
+                    <span id="moduleBadgeText">-</span>
+                    <button class="btn-close-module" onclick="clearModuleSelection()" title="Cambiar">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </span>
+            </div>
+        </div>
+
+        <!-- Contenido -->
+        <div class="pos-content">
+            <!-- Mostrador -->
+            <div id="counterContent" class="module-content active">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="alert alert-info d-flex align-items-center gap-2 mb-0">
+                        <i class="fas fa-info-circle"></i>
+                        <span>Pedido rápido sin mesa</span>
+                    </div>
+                    <button class="btn btn-primary" onclick="startCounterOrder()">
+                        <i class="fas fa-plus"></i> Nuevo Pedido
+                    </button>
+                </div>
+                {% include 'sales/modules/_menu_products.html' with module='counter' %}
+            </div>
+
+            
+            <!-- Domicilio -->
+            <div id="deliveryContent" class="module-content">
+                <!-- ===== NUEVO: Lista de pedidos activos ===== -->
+                <div class="delivery-orders-list mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="mb-0"><i class="fas fa-truck"></i> Pedidos a Domicilio Activos</h6>
+                        <span class="badge bg-primary" id="deliveryCount">0</span>
+                    </div>
+                    <div id="deliveryOrdersContainer" class="delivery-orders-grid">
+                        <div class="text-muted text-center py-3">
+                            <i class="fas fa-inbox fa-2x d-block mb-2"></i>
+                            No hay pedidos a domicilio activos
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Formulario de nuevo pedido -->
+                <div class="delivery-form">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="mb-0"><i class="fas fa-plus-circle"></i> Nuevo Pedido a Domicilio</h6>
+                        <button class="btn btn-primary btn-sm" onclick="startDeliveryOrder()">
+                            <i class="fas fa-plus"></i> Iniciar Pedido
+                        </button>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label><i class="fas fa-user"></i> Cliente *</label>
+                                <input type="text" class="form-control" id="deliveryClient" placeholder="Nombre">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label><i class="fas fa-phone"></i> Teléfono *</label>
+                                <input type="text" class="form-control" id="deliveryPhone" placeholder="555-1234">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label><i class="fas fa-map-marker-alt"></i> Dirección *</label>
+                                <input type="text" class="form-control" id="deliveryAddress" placeholder="Calle, número">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                {% include 'sales/modules/_menu_products.html' with module='delivery' %}
+            </div>
+
+            <!-- Mesas -->
+            <div id="tablesContent" class="module-content">
+                {% include 'sales/modules/_table_selector.html' %}
+                <div id="menuContentTables" style="display: none;">
+                    {% include 'sales/modules/_menu_products.html' with module='tables' %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== CARRITO LATERAL ===== -->
+    <div class="pos-cart" style="display: none;">
+        <div class="cart-header">
+            <span class="cart-title">
+                <i class="fas fa-shopping-cart"></i> Carrito
+            </span>
+            <span class="order-info" id="cartOrderInfo">
+                <i class="fas fa-receipt"></i> #<span id="orderNumber">0</span>
+            </span>
+            <!-- Botón de ocultar - Solo visible en Mesas y Domicilio -->
+            <button class="btn-close-cart" id="hideCartBtn" onclick="hideCart()" title="Ocultar carrito" style="display: none;">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="cart-body" id="cartItems">
+            <div class="cart-empty">
+                <i class="fas fa-shopping-basket"></i>
+                <p>Agrega productos al carrito</p>
+            </div>
+        </div>
+        <div class="cart-footer">
+            <div class="totals">
+                <span class="label">Subtotal</span>
+                <span class="value" id="cartSubtotal">$0.00</span>
+            </div>
+            <div class="totals">
+                <span class="label">IVA (16%)</span>
+                <span class="value" id="cartTax">$0.00</span>
+            </div>
+            <div class="totals grand-total">
+                <span class="label" style="font-weight: 700;">Total</span>
+                <span class="value" id="cartTotal">$0.00</span>
+            </div>
+            <div class="d-flex gap-2 mt-2">
+                 <button class="btn btn-warning flex-fill" id="assignDeliveryBtn" onclick="assignDeliveryOrder()" style="display: none;">
+                    <i class="fas fa-check-circle"></i> Asignar Pedido
+                </button>
+
+                <button class="btn btn-danger flex-fill" onclick="cancelOrder()">
+                    <i class="fas fa-times"></i> Cancelar Pedido
+                </button>
+                <button class="btn btn-success flex-fill" id="checkoutBtn" disabled onclick="processCheckout()">
+                    <i class="fas fa-credit-card"></i> Cobrar
+                </button>
+            </div>
+        </div>
+    </div>
+
+<!-- ===== MODAL PERSONALIZADOR ===== -->
+<div class="modal fade" id="productCustomizerModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="customizerTitle">
+                    <i class="fas fa-plus-circle"></i> Personalizar
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="customizerBody">
+                <!-- Cargado vía JS -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Variable global CSRF para usar en JavaScript
+    window.CSRF_TOKEN = "{{ csrf_token|escapejs }}";
+    console.log('✅ CSRF Token cargado:', window.CSRF_TOKEN);
+</script>
+<script src="{% static 'js/pos.js' %}"></script>
+{% endblock %}

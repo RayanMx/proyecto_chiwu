@@ -1,0 +1,110 @@
+{% extends 'layouts/base.html' %}
+{% load static %}
+
+{% block title %}Información del negocio - Chiwu{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4><i class="fas fa-store"></i> Información del negocio</h4>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label>Nombre de la Empresa</label>
+                    <input type="text" class="form-control" name="business_name" value="{{ profile.business_name }}">
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label>WhatsApp para pedidos</label>
+                    <input type="text" class="form-control" name="whatsapp" value="{{ profile.whatsapp }}" placeholder="+52 9935163726">
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-12 mb-3">
+                    <label>Dirección</label>
+                    <input type="text" class="form-control" name="address" value="{{ profile.address }}" placeholder="La Choca, 86037 Villahermosa, Tab., México">
+                </div>
+                <div class="col-md-12 mb-3">
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" name="hide_address" {% if profile.hide_address %}checked{% endif %}>
+                        <label class="form-check-label">No mostrar la dirección del negocio en el menú digital</label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label>Moneda</label>
+                    <select class="form-select" name="currency">
+                        {% for value, label in currencies %}
+                        <option value="{{ value }}" {% if profile.currency == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label>Idioma</label>
+                    <select class="form-select" name="language">
+                        {% for value, label in languages %}
+                        <option value="{{ value }}" {% if profile.language == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            
+            <hr>
+            <h5>Tipo de negocio</h5>
+            
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label>¿Qué tipo de negocio opera?</label>
+                    <select class="form-select" name="business_type">
+                        {% for value, label in business_types %}
+                        <option value="{{ value }}" {% if profile.business_type == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label>¿Qué estilo de comida hay en su menú?</label>
+                    <select class="form-select" name="food_style">
+                        {% for value, label in food_styles %}
+                        <option value="{{ value }}" {% if profile.food_style == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-12 mb-3">
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" name="is_pos_main" {% if profile.is_pos_main %}checked{% endif %}>
+                        <label class="form-check-label">¿Es Chiwu su sistema de punto de venta principal?</label>
+                    </div>
+                </div>
+            </div>
+            
+            <hr>
+            <h5>Horario de atención</h5>
+            
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label>Hora de apertura</label>
+                    <input type="time" class="form-control" name="opening_time" value="{{ profile.opening_time|default:'10:00' }}">
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label>Hora de cierre</label>
+                    <input type="time" class="form-control" name="closing_time" value="{{ profile.closing_time|default:'22:00' }}">
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label>&nbsp;</label>
+                    <button class="btn btn-primary w-100">Guardar cambios</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

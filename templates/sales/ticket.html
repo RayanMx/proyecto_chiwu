@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Ticket #{{ sale.id }}</title>
+    <style>
+        body { font-family: monospace; width: 300px; margin: 0 auto; padding: 10px; }
+        .center { text-align: center; }
+        .divider { border-top: 1px dashed #000; margin: 10px 0; }
+        table { width: 100%; }
+        .right { text-align: right; }
+        .bold { font-weight: bold; }
+        .total { font-size: 18px; }
+        .footer { margin-top: 20px; font-size: 12px; }
+        @media print {
+            .no-print { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="center">
+        <h3>{{ business_name }}</h3>
+        <p>{{ business_address }}</p>
+        <p>Tel: {{ business_phone }}</p>
+        <div class="divider"></div>
+        <p><strong>Ticket #{{ sale.id }}</strong></p>
+        <p>{{ sale.created_at|date:"d/m/Y H:i" }}</p>
+        <p>Mesa: {% if sale.table_orders.first %}Mesa {{ sale.table_orders.first.number }}{% else %}Para llevar{% endif %}</p>
+        <div class="divider"></div>
+    </div>
+
+    <table>
+        {% for item in items %}
+        <tr>
+            <td>{{ item.quantity }}x {{ item.product.name }}</td>
+            <td class="right">${{ item.subtotal|floatformat:2 }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <div class="divider"></div>
+    <table>
+        <tr><td>Subtotal:</td><td class="right">${{ sale.subtotal|floatformat:2 }}</td></tr>
+        {% if sale.discount > 0 %}
+        <tr><td>Descuento:</td><td class="right">-${{ sale.discount|floatformat:2 }}</td></tr>
+        {% endif %}
+        <tr class="bold total"><td>TOTAL:</td><td class="right">${{ sale.total|floatformat:2 }}</td></tr>
+    </table>
+
+    <div class="divider"></div>
+    <div class="center">
+        <p>Método: {{ sale.payment_method|default:"Pendiente" }}</p>
+        <p>¡Gracias por su visita!</p>
+        <div class="divider"></div>
+        <button onclick="window.print()" class="no-print">🖨 Imprimir</button>
+        <button onclick="window.close()" class="no-print">✖ Cerrar</button>
+    </div>
+</body>
+</html>

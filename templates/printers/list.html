@@ -1,0 +1,53 @@
+{% extends 'layouts/base.html' %}
+{% load static %}
+
+{% block title %}Impresoras - Chiwu{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4><i class="fas fa-print"></i> Impresoras y tickets</h4>
+    <button class="btn btn-primary" onclick="alert('Agregar impresora')">
+        <i class="fas fa-plus"></i> Agregar impresora
+    </button>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <p class="text-muted text-center">No hay impresoras configuradas</p>
+        <div class="text-center">
+            <button class="btn btn-outline-primary">Configurar impresora</button>
+        </div>
+    </div>
+</div>
+
+<div class="card mt-3">
+    <div class="card-header">
+        <h5>Configuración de tickets</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input" checked>
+                    <label>Imprimir ticket automáticamente</label>
+                </div>
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input">
+                    <label>Imprimir ticket de cocina</label>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input" checked>
+                    <label>Incluir QR en ticket</label>
+                </div>
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input">
+                    <label>Imprimir en factura</label>
+                </div>
+            </div>
+        </div>
+        <button class="btn btn-primary mt-3">Guardar configuración</button>
+    </div>
+</div>
+{% endblock %}

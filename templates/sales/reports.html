@@ -1,0 +1,228 @@
+{% extends 'layouts/base.html' %}
+{% load static %}
+
+{% block title %}Reportes - Chiwu{% endblock %}
+
+{% block extra_css %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4><i class="fas fa-chart-bar"></i> Reportes</h4>
+    <div>
+        <button class="btn btn-outline-primary" onclick="exportReport()">
+            <i class="fas fa-file-pdf"></i> Exportar PDF
+        </button>
+        <button class="btn btn-outline-success" onclick="exportExcel()">
+            <i class="fas fa-file-excel"></i> Exportar Excel
+        </button>
+    </div>
+</div>
+
+<!-- Filtros de fecha -->
+<div class="card mb-3">
+    <div class="card-body">
+        <form class="row g-3" method="get">
+            <div class="col-md-3">
+                <label>Desde</label>
+                <input type="date" class="form-control" name="date_from" value="{{ start_date|date:'Y-m-d' }}">
+            </div>
+            <div class="col-md-3">
+                <label>Hasta</label>
+                <input type="date" class="form-control" name="date_to" value="{{ end_date|date:'Y-m-d' }}">
+            </div>
+            <div class="col-md-2">
+                <label>&nbsp;</label>
+                <button class="btn btn-primary w-100">Filtrar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Métricas principales -->
+<div class="row mb-3">
+    <div class="col-md-4">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <h6>Cantidad de pedidos</h6>
+                <h2>{{ total_orders }}</h2>
+                <small><i class="fas fa-arrow-up"></i> 10.29%</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <h6>Ventas totales</h6>
+                <h2>${{ total_sales|floatformat:2 }}</h2>
+                <small><i class="fas fa-arrow-up"></i> 2%</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <h6>Ticket promedio</h6>
+                <h2>${{ avg_ticket|floatformat:2 }}</h2>
+                <small><i class="fas fa-arrow-up"></i> 7.52%</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Gráfico de ventas diarias -->
+<div class="row mb-3">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5>Pedidos - Últimos 7 días</h5>
+                <small>{{ start_date|date:"d M Y" }} - {{ end_date|date:"d M Y" }}</small>
+            </div>
+            <div class="card-body">
+                <canvas id="salesChart" height="250"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>Análisis de pedidos</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Tipo</th>
+                                <th>Cant.</th>
+                                <th>Total</th>
+                                <th>Prom.</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in service_analysis %}
+                            <tr>
+                                <td>{{ item.get_service_type_display }}</td>
+                                <td>{{ item.count }}</td>
+                                <td>${{ item.total|floatformat:2 }}</td>
+                                <td>${{ item.avg|floatformat:2 }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-muted">Sin datos</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reporte diario por email -->
+<div class="card mb-3">
+    <div class="card-header">
+        <h5><i class="fas fa-envelope"></i> Reporte de control diario por email</h5>
+    </div>
+    <div class="card-body">
+        <p class="text-muted">Recibe un resumen diario con cifras clave de los pedidos y pagos de las últimas 24 horas.</p>
+        <form class="row g-3">
+            <div class="col-md-3">
+                <label>Días de recepción</label>
+                <select class="form-select" multiple>
+                    <option selected>Lunes</option>
+                    <option selected>Martes</option>
+                    <option selected>Miércoles</option>
+                    <option selected>Jueves</option>
+                    <option selected>Viernes</option>
+                    <option selected>Sábado</option>
+                    <option selected>Domingo</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label>Hora</label>
+                <input type="time" class="form-control" value="23:00">
+            </div>
+            <div class="col-md-3">
+                <label>Email</label>
+                <input type="email" class="form-control" placeholder="correo@ejemplo.com" value="contactosalazarmx@gmail.com">
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button class="btn btn-primary w-100">Guardar</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Gráfico de ventas diarias
+    const ctx = document.getElementById('salesChart').getContext('2d');
+    const dailyData = {{ daily_sales|safe }};
+    
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: dailyData.map(d => d.date),
+            datasets: [{
+                label: 'Cantidad de pedidos',
+                data: dailyData.map(d => d.count),
+                borderColor: '#ff6b6b',
+                backgroundColor: 'rgba(255, 107, 107, 0.1)',
+                tension: 0.4,
+                fill: true
+            }, {
+                label: 'Ventas totales ($)',
+                data: dailyData.map(d => d.total),
+                borderColor: '#4ecdc4',
+                backgroundColor: 'rgba(78, 205, 196, 0.1)',
+                tension: 0.4,
+                fill: true,
+                yAxisID: 'y1'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return value + ' pedidos';
+                        }
+                    }
+                },
+                y1: {
+                    position: 'right',
+                    beginAtZero: true,
+                    grid: {
+                        drawOnChartArea: false
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value;
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    function exportReport() {
+        alert('Exportando reporte PDF...');
+    }
+
+    function exportExcel() {
+        alert('Exportando reporte Excel...');
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,117 @@
+{% extends 'layouts/base.html' %}
+{% load static %}
+
+{% block title %}Dividir Cuenta #{{ sale.id }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="card">
+        <div class="card-header">
+            <h4>Dividir Cuenta - Venta #{{ sale.id }}</h4>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h5>Productos</h5>
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th>Cant.</th>
+                                <th>Precio</th>
+                                <th><input type="checkbox" id="select-all"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr>
+                                <td>{{ item.product.name }}</td>
+                                <td>{{ item.quantity }}</td>
+                                <td>${{ item.price|floatformat:2 }}</td>
+                                <td><input type="checkbox" class="item-select" data-id="{{ item.id }}" data-price="{{ item.subtotal }}"></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="col-md-6">
+                    <h5>Comensales</h5>
+                    <div id="diners">
+                        <div class="input-group mb-2">
+                            <input type="text" class="form-control diner-name" placeholder="Comensal 1" value="Comensal 1">
+                            <button class="btn btn-danger remove-diner" type="button">✖</button>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary btn-sm" id="add-diner">
+                        <i class="fas fa-user-plus"></i> Agregar comensal
+                    </button>
+                    <hr>
+                    <button class="btn btn-success w-100" id="split-bill">
+                        <i class="fas fa-cut"></i> Dividir Cuenta
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    // Select all
+    $('#select-all').change(function() {
+        $('.item-select').prop('checked', $(this).prop('checked'));
+    });
+
+    // Add diner
+    let dinerCount = 1;
+    $('#add-diner').click(function() {
+        dinerCount++;
+        $('#diners').append(`
+            <div class="input-group mb-2">
+                <input type="text" class="form-control diner-name" placeholder="Comensal ${dinerCount}" value="Comensal ${dinerCount}">
+                <button class="btn btn-danger remove-diner" type="button">✖</button>
+            </div>
+        `);
+    });
+
+    // Remove diner
+    $(document).on('click', '.remove-diner', function() {
+        if ($('.diner-name').length > 1) {
+            $(this).closest('.input-group').remove();
+        }
+    });
+
+    // Split bill
+    $('#split-bill').click(function() {
+        const diners = [];
+        $('.diner-name').each(function() {
+            const items = [];
+            $('.item-select:checked').each(function() {
+                items.push($(this).data('id'));
+            });
+            diners.push({
+                name: $(this).val() || 'Comensal',
+                item_ids: items
+            });
+        });
+
+        $.ajax({
+            url: "{% url 'sales:split_bill' sale.id %}",
+            method: 'POST',
+            headers: {'X-CSRFToken': '{{ csrf_token }}'},
+            data: JSON.stringify({splits: diners}),
+            contentType: 'application/json',
+            success: function(data) {
+                if (data.status === 'success') {
+                    alert('Cuenta dividida exitosamente');
+                    window.location.href = "{% url 'sales:history' %}";
+                }
+            },
+            error: function(xhr) {
+                alert('Error: ' + xhr.responseJSON.message);
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

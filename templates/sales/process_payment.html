@@ -1,0 +1,47 @@
+{% extends 'layouts/base.html' %}
+{% load static %}
+
+{% block title %}Procesar Pago - #{{ sale.id }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h4>Procesar Pago - Venta #{{ sale.id }}</h4>
+                </div>
+                <div class="card-body">
+                    <h3 class="text-center mb-4">Total: ${{ sale.total|floatformat:2 }}</h3>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label>Método de Pago</label>
+                            <select name="payment_method" class="form-control" required>
+                                <option value="">Seleccionar...</option>
+                                {% for value, label in payment_methods %}
+                                <option value="{{ value }}">{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label>Monto Recibido</label>
+                            <input type="number" name="amount_received" class="form-control" 
+                                   step="0.01" min="{{ sale.total }}" value="{{ sale.total }}" required>
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="fas fa-check"></i> Completar Pago
+                            </button>
+                            <a href="{% url 'sales:sale_detail' sale.id %}" class="btn btn-secondary">
+                                Cancelar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,578 @@
+{% extends 'layouts/base.html' %}
+{% load static %}
+
+{% block title %}Productos - Chiwu{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4><i class="fas fa-utensils"></i> Página de productos</h4>
+    <div>
+        <button class="btn btn-outline-secondary me-2" onclick="toggleAllCategories()">
+            <i class="fas fa-expand-alt"></i> Expandir todo
+        </button>
+        <button class="btn btn-outline-primary me-2" onclick="openCategoryModal()">
+            <i class="fas fa-folder-plus"></i> Agregar categoría
+        </button>
+        <a href="{% url 'products:create' %}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Nuevo producto
+        </a>
+    </div>
+</div>
+
+<!-- Categorías destacadas -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5><i class="fas fa-star text-warning"></i> Categoría destacados</h5>
+                <span class="badge bg-secondary">{{ categories|length }} categorías, {{ products|length }} productos</span>
+            </div>
+            <div class="card-body">
+                <div class="row" id="categoriesContainer">
+                    {% for category in categories %}
+                    <div class="col-md-2 col-sm-4 mb-2 category-item" data-category-id="{{ category.id }}">
+                        <div class="card text-center category-card {% if category.is_featured %}border-warning{% endif %}">
+                            <div class="card-body">
+                                <i class="fas fa-tag fa-2x {% if category.is_featured %}text-warning{% else %}text-primary{% endif %}"></i>
+                                <h6 class="mt-1">{{ category.name }}</h6>
+                                <small>{{ category.products.count }} productos</small>
+                                <br>
+                                <button class="btn btn-sm btn-outline-danger mt-1 delete-category" data-id="{{ category.id }}">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="col-12">
+                        <p class="text-muted text-center">No hay categorías creadas</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Lista de productos -->
+<div class="card">
+    <div class="card-header">
+        <div class="row">
+            <div class="col-md-4">
+                <input type="text" class="form-control" id="searchProduct" placeholder="Buscar producto...">
+            </div>
+            <div class="col-md-3">
+                <select class="form-select" id="filterCategory">
+                    <option value="">Todas las categorías</option>
+                    {% for category in categories %}
+                    <option value="{{ category.id }}">{{ category.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select class="form-select" id="filterFeatured">
+                    <option value="">Todos</option>
+                    <option value="featured">Destacados</option>
+                    <option value="normal">Normales</option>
+                </select>
+            </div>
+            <div class="col-md-2 text-end">
+                <span class="text-muted">{{ products|length }} productos</span>
+            </div>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="row" id="productList">
+            {% for product in products %}
+            <div class="col-md-3 col-sm-6 mb-3 product-item" 
+                 data-product-id="{{ product.id }}"
+                 data-category="{{ product.category.id|default:'' }}"
+                 data-featured="{{ product.is_featured|yesno:'featured,normal' }}">
+                <div class="card product-card h-100 {% if product.is_featured %}border-warning{% endif %}">
+                    {% if product.is_featured %}
+                    <div class="position-absolute top-0 end-0 m-2">
+                        <span class="badge bg-warning"><i class="fas fa-star"></i> Destacado</span>
+                    </div>
+                    {% endif %}
+                    {% if product.image %}
+                        <img src="{{ product.image.url }}" class="card-img-top" alt="{{ product.name }}" style="height: 150px; object-fit: cover;">
+                    {% else %}
+                        <div class="card-img-top bg-light text-center py-4">
+                            <i class="fas fa-box fa-3x text-muted"></i>
+                        </div>
+                    {% endif %}
+                    <div class="card-body">
+                        <h6 class="card-title">{{ product.name }}</h6>
+                        <p class="card-text">
+                            <span class="badge bg-primary">${{ product.price }}</span>
+                            {% if product.variants.exists %}
+                                <span class="badge bg-info">{{ product.variants.count }} Variantes</span>
+                            {% endif %}
+                            <br>
+                            <small class="text-muted">{{ product.category.name|default:"Sin categoría" }}</small>
+                        </p>
+                        <div class="btn-group w-100">
+                            <button class="btn btn-sm {% if product.is_featured %}btn-warning{% else %}btn-outline-warning{% endif %} toggle-featured" 
+                                    data-id="{{ product.id }}" title="Destacar/Quitar destacado">
+                                <i class="fas fa-star"></i>
+                            </button>
+                            <a href="{% url 'products:edit' product.id %}" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <button class="btn btn-sm btn-outline-danger delete-product" data-id="{{ product.id }}">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-12">
+                <p class="text-center text-muted">No hay productos creados</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Modal para agregar categoría -->
+<div class="modal fade" id="categoryModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-folder-plus"></i> Nueva categoría</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="categoryForm">
+                    <div class="mb-3">
+                        <label>Nombre de la categoría *</label>
+                        <input type="text" class="form-control" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label>Descripción</label>
+                        <textarea class="form-control" name="description" rows="2"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="saveCategory()">
+                    <i class="fas fa-save"></i> Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Offcanvas - Panel lateral de edición -->
+<div class="offcanvas offcanvas-end" tabindex="-1" id="productOffcanvas" style="width: 500px;">
+    <div class="offcanvas-header border-bottom">
+        <h5 class="offcanvas-title" id="offcanvasTitle">
+            <i class="fas fa-edit text-primary"></i> Editar producto
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+    </div>
+    <div class="offcanvas-body" id="productDetailContent">
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Cargando...</span>
+            </div>
+            <p class="mt-2 text-muted">Cargando información del producto...</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // ==================== FUNCIÓN PARA OBTENER CSRF TOKEN ====================
+    
+    function getCSRFToken() {
+        const meta = document.querySelector('meta[name="csrf-token"]');
+        if (meta) return meta.content;
+        const input = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (input) return input.value;
+        const cookies = document.cookie.split(';');
+        for (let cookie of cookies) {
+            const [name, value] = cookie.trim().split('=');
+            if (name === 'csrftoken') return value;
+        }
+        return '';
+    }
+
+    // ==================== BÚSQUEDA Y FILTROS ====================
+    
+    function filterProducts() {
+        const search = document.getElementById('searchProduct').value.toLowerCase();
+        const category = document.getElementById('filterCategory').value;
+        const featured = document.getElementById('filterFeatured').value;
+        
+        document.querySelectorAll('.product-item').forEach(item => {
+            let show = true;
+            const name = item.querySelector('.card-title').textContent.toLowerCase();
+            const cat = item.dataset.category;
+            const feat = item.dataset.featured;
+            
+            if (search && !name.includes(search)) show = false;
+            if (category && cat !== category) show = false;
+            if (featured === 'featured' && feat !== 'featured') show = false;
+            if (featured === 'normal' && feat !== 'normal') show = false;
+            
+            item.style.display = show ? '' : 'none';
+        });
+    }
+
+    document.getElementById('searchProduct').addEventListener('keyup', filterProducts);
+    document.getElementById('filterCategory').addEventListener('change', filterProducts);
+    document.getElementById('filterFeatured').addEventListener('change', filterProducts);
+
+    // ==================== EXPANDIR/CONTRAER CATEGORÍAS ====================
+    
+    let categoriesExpanded = true;
+
+    function toggleAllCategories() {
+        categoriesExpanded = !categoriesExpanded;
+        document.querySelectorAll('.category-item').forEach(item => {
+            item.style.display = categoriesExpanded ? '' : 'none';
+        });
+        const btn = document.querySelector('.btn-outline-secondary');
+        if (btn) {
+            btn.innerHTML = categoriesExpanded ? 
+                '<i class="fas fa-compress-alt"></i> Contraer todo' : 
+                '<i class="fas fa-expand-alt"></i> Expandir todo';
+        }
+    }
+
+    // ==================== DESTACAR PRODUCTO ====================
+    
+    document.querySelectorAll('.toggle-featured').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const id = this.dataset.id;
+            const csrf = getCSRFToken();
+            
+            fetch(`/productos/toggle-featured/${id}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrf,
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    location.reload();
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        });
+    });
+
+    // ==================== ELIMINAR PRODUCTO ====================
+    
+    document.querySelectorAll('.delete-product').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            if (confirm('¿Eliminar este producto?')) {
+                const id = this.dataset.id;
+                const csrf = getCSRFToken();
+                
+                fetch(`/productos/delete/${id}/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrf,
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        this.closest('.product-item').remove();
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+            }
+        });
+    });
+
+    // ==================== ELIMINAR CATEGORÍA ====================
+    
+    document.querySelectorAll('.delete-category').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            if (confirm('¿Eliminar esta categoría?')) {
+                const id = this.dataset.id;
+                const csrf = getCSRFToken();
+                
+                fetch(`/productos/category/delete/${id}/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrf,
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        location.reload();
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+            }
+        });
+    });
+
+    // ==================== MODAL DE CATEGORÍA ====================
+    
+    function openCategoryModal() {
+        new bootstrap.Modal(document.getElementById('categoryModal')).show();
+    }
+
+    function saveCategory() {
+        const form = document.getElementById('categoryForm');
+        const formData = new FormData(form);
+        const csrf = getCSRFToken();
+        
+        fetch('{% url "products:category_create" %}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': csrf
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                location.reload();
+            }
+        })
+        .catch(error => console.error('Error:', error));
+    }
+
+    // ==================== CIERRE DEL MODAL CON ESC ====================
+    
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            const modal = document.getElementById('categoryModal');
+            const modalInstance = bootstrap.Modal.getInstance(modal);
+            if (modalInstance) {
+                modalInstance.hide();
+            }
+        }
+    });
+
+    // ==================== TOOLTIP PARA EL BOTÓN DE DESTACAR ====================
+    
+    document.querySelectorAll('.toggle-featured').forEach(btn => {
+        btn.addEventListener('mouseenter', function() {
+            const isFeatured = this.classList.contains('btn-warning');
+            this.title = isFeatured ? 'Quitar destacado' : 'Destacar producto';
+        });
+    });
+
+    // ==================== PANEL LATERAL DE PRODUCTO (OFFCANVAS) ====================
+    
+    let currentProductId = null;
+    const offcanvasElement = document.getElementById('productOffcanvas');
+    const offcanvas = new bootstrap.Offcanvas(offcanvasElement, {
+        backdrop: true,
+        keyboard: true,
+        scroll: false
+    });
+
+    // Abrir panel al hacer clic en una tarjeta de producto
+    document.querySelectorAll('.product-card').forEach(card => {
+        card.style.cursor = 'pointer';
+        card.addEventListener('click', function(e) {
+            // Si el clic fue en un botón o enlace, no abrir el panel
+            if (e.target.closest('button') || e.target.closest('a')) {
+                return;
+            }
+            const productItem = this.closest('.product-item');
+            if (productItem) {
+                const productId = productItem.dataset.productId;
+                if (productId) {
+                    openProductDetail(productId);
+                }
+            }
+        });
+    });
+
+    function openProductDetail(productId) {
+        currentProductId = productId;
+        const content = document.getElementById('productDetailContent');
+        
+        // Mostrar loading
+        content.innerHTML = `
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Cargando...</span>
+                </div>
+                <p class="mt-2 text-muted">Cargando información del producto...</p>
+            </div>
+        `;
+        
+        // Abrir offcanvas
+        offcanvas.show();
+        
+        // Cargar datos del producto
+        fetch(`/productos/detail/${productId}/`)
+            .then(response => response.json())
+            .then(data => {
+                renderProductDetail(data);
+            })
+            .catch(error => {
+                content.innerHTML = `
+                    <div class="text-center py-5 text-danger">
+                        <i class="fas fa-exclamation-circle fa-3x"></i>
+                        <p class="mt-2">Error al cargar el producto</p>
+                    </div>
+                `;
+                console.error('Error:', error);
+            });
+    }
+
+    function renderProductDetail(data) {
+        const content = document.getElementById('productDetailContent');
+        
+        let variantsHtml = '';
+        if (data.variants && data.variants.length > 0) {
+            variantsHtml = data.variants.map(v => `
+                <span class="badge bg-info me-1">${v.name} $${v.price}</span>
+            `).join('');
+        } else {
+            variantsHtml = '<span class="text-muted">Sin variantes</span>';
+        }
+        
+        let modifiersHtml = '';
+        if (data.modifiers && data.modifiers.length > 0) {
+            modifiersHtml = data.modifiers.map(m => `
+                <span class="badge bg-secondary me-1">${m.name} $${m.price}</span>
+            `).join('');
+        } else {
+            modifiersHtml = '<span class="text-muted">Sin modificadores</span>';
+        }
+        
+        content.innerHTML = `
+            <!-- Imagen -->
+            <div class="text-center mb-3">
+                ${data.image ? 
+                    `<img src="${data.image}" class="img-fluid rounded" style="max-height: 150px; object-fit: cover;">` : 
+                    `<div class="bg-light text-center py-4 rounded"><i class="fas fa-box fa-3x text-muted"></i></div>`
+                }
+            </div>
+            
+            <!-- Nombre y precio -->
+            <div class="d-flex justify-content-between align-items-start mb-3">
+                <div>
+                    <h4>${data.name}</h4>
+                    <span class="badge bg-secondary">${data.category_name || 'Sin categoría'}</span>
+                    ${data.is_featured ? '<span class="badge bg-warning"><i class="fas fa-star"></i> Destacado</span>' : ''}
+                    ${data.is_visible ? '<span class="badge bg-success">Visible</span>' : '<span class="badge bg-danger">Oculto</span>'}
+                </div>
+                <h3 class="text-primary">$${data.price}</h3>
+            </div>
+            
+            <!-- Descripción -->
+            <div class="mb-3">
+                <label class="text-muted small">Descripción</label>
+                <p>${data.description || 'Sin descripción'}</p>
+            </div>
+            
+            <!-- Precios -->
+            <div class="row mb-3">
+                <div class="col-6">
+                    <label class="text-muted small">Precio</label>
+                    <p><strong>$${data.price}</strong></p>
+                </div>
+                <div class="col-6">
+                    <label class="text-muted small">Costo</label>
+                    <p><strong>$${data.cost}</strong></p>
+                </div>
+            </div>
+            
+            <!-- Stock -->
+            <div class="mb-3">
+                <label class="text-muted small">Control de existencias</label>
+                <div class="d-flex align-items-center">
+                    <span class="badge ${data.stock > 0 ? 'bg-success' : 'bg-danger'} me-2">
+                        ${data.stock > 0 ? 'Disponible' : 'Agotado'}
+                    </span>
+                    <span>Stock: ${data.stock} unidades</span>
+                </div>
+            </div>
+            
+            <!-- Variantes -->
+            <div class="mb-3">
+                <label class="text-muted small">Variantes</label>
+                <div>${variantsHtml}</div>
+            </div>
+            
+            <!-- Modificadores -->
+            <div class="mb-3">
+                <label class="text-muted small">Modificadores</label>
+                <div>${modifiersHtml}</div>
+            </div>
+            
+            <!-- Cocina -->
+            <div class="mb-3">
+                <label class="text-muted small">Cocina</label>
+                <div>
+                    ${data.is_kitchen ? 
+                        '<span class="badge bg-warning">Requiere cocina</span>' : 
+                        '<span class="badge bg-secondary">No requiere cocina</span>'
+                    }
+                </div>
+            </div>
+            
+            <!-- Botones de acción -->
+            <div class="d-grid gap-2 mt-4">
+                <a href="/productos/edit/${data.id}/" class="btn btn-primary">
+                    <i class="fas fa-edit"></i> Editar producto
+                </a>
+                <button class="btn btn-outline-danger" onclick="deleteProductFromDetail(${data.id})">
+                    <i class="fas fa-trash"></i> Eliminar producto
+                </button>
+            </div>
+        `;
+        
+        // Actualizar título
+        document.getElementById('offcanvasTitle').innerHTML = `
+            <i class="fas fa-edit text-primary"></i> ${data.name}
+        `;
+    }
+
+    function deleteProductFromDetail(productId) {
+        if (confirm('¿Eliminar este producto?')) {
+            const csrf = getCSRFToken();
+            fetch(`/productos/delete/${productId}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrf,
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    offcanvas.hide();
+                    location.reload();
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+    }
+
+    // ==================== AGREGAR META CSRF (si no existe) ====================
+    
+    if (!document.querySelector('meta[name="csrf-token"]')) {
+        const meta = document.createElement('meta');
+        meta.name = 'csrf-token';
+        meta.content = getCSRFToken();
+        document.head.appendChild(meta);
+    }
+
+    console.log('✅ Productos cargados correctamente');
+</script>
+{% endblock %}

@@ -1,0 +1,259 @@
+{% extends 'layouts/base.html' %}
+{% load static %}
+
+{% block title %}{% if product %}Editar{% else %}Nuevo{% endif %} producto - Chiwu{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4><i class="fas fa-{% if product %}edit{% else %}plus{% endif %}"></i> 
+        {% if product %}Editar{% else %}Nuevo{% endif %} producto
+    </h4>
+    <a href="{% url 'products:list' %}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Volver
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form id="productForm" enctype="multipart/form-data">
+            {% csrf_token %}
+            
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label>Nombre del producto *</label>
+                    <input type="text" class="form-control" name="name" value="{{ product.name|default:'' }}" required>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label>Categoría</label>
+                    <div class="input-group">
+                        <select class="form-select" name="category">
+                            <option value="">Sin categoría</option>
+                            {% for category in categories %}
+                            <option value="{{ category.id }}" {% if product.category.id == category.id %}selected{% endif %}>
+                                {{ category.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <button type="button" class="btn btn-outline-primary" onclick="openCategoryModal()">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-12 mb-3">
+                    <label>Descripción</label>
+                    <textarea class="form-control" name="description" rows="2">{{ product.description|default:'' }}</textarea>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-3 mb-3">
+                    <label>Precio *</label>
+                    <input type="number" class="form-control" name="price" step="0.01" value="{{ product.price|default:'0' }}" required>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label>Costo</label>
+                    <input type="number" class="form-control" name="cost" step="0.01" value="{{ product.cost|default:'0' }}">
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label>Stock</label>
+                    <input type="number" class="form-control" name="stock" value="{{ product.stock|default:'0' }}">
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label>Imagen</label>
+                    <input type="file" class="form-control" name="image" accept="image/*">
+                    {% if product.image %}
+                    <small class="text-muted">Imagen actual: {{ product.image.name }}</small>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-12 mb-3">
+                    <div class="form-check form-switch">
+                        <input type="checkbox" class="form-check-input" name="is_visible" id="isVisible" {% if product.is_visible or not product %}checked{% endif %}>
+                        <label class="form-check-label" for="isVisible">Visible en el menú</label>
+                    </div>
+                    <div class="form-check form-switch">
+                        <input type="checkbox" class="form-check-input" name="is_featured" id="isFeatured" {% if product.is_featured %}checked{% endif %}>
+                        <label class="form-check-label" for="isFeatured">
+                            <i class="fas fa-star text-warning"></i> Producto destacado
+                        </label>
+                    </div>
+                    <div class="form-check form-switch">
+                        <input type="checkbox" class="form-check-input" name="is_kitchen" id="isKitchen" {% if product.is_kitchen %}checked{% endif %}>
+                        <label class="form-check-label" for="isKitchen">Requiere preparación en cocina</label>
+                    </div>
+                </div>
+            </div>
+            
+            <hr>
+            <h5>Variantes</h5>
+            <p class="text-muted small">Agrega variantes como tamaños, sabores o presentaciones</p>
+            
+            <div id="variantsContainer">
+                {% for variant in product.variants.all %}
+                <div class="row variant-row mb-2">
+                    <div class="col-md-5">
+                        <input type="text" class="form-control" name="variant_name[]" value="{{ variant.name }}" placeholder="Nombre variante">
+                    </div>
+                    <div class="col-md-3">
+                        <input type="number" class="form-control" name="variant_price[]" value="{{ variant.price }}" placeholder="Precio" step="0.01">
+                    </div>
+                    <div class="col-md-3">
+                        <input type="number" class="form-control" name="variant_stock[]" value="{{ variant.stock }}" placeholder="Stock">
+                    </div>
+                    <div class="col-md-1">
+                        <button type="button" class="btn btn-danger btn-sm remove-variant">×</button>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="row variant-row mb-2">
+                    <div class="col-md-5">
+                        <input type="text" class="form-control" name="variant_name[]" placeholder="Nombre variante">
+                    </div>
+                    <div class="col-md-3">
+                        <input type="number" class="form-control" name="variant_price[]" placeholder="Precio" step="0.01">
+                    </div>
+                    <div class="col-md-3">
+                        <input type="number" class="form-control" name="variant_stock[]" placeholder="Stock" value="0">
+                    </div>
+                    <div class="col-md-1">
+                        <button type="button" class="btn btn-danger btn-sm remove-variant">×</button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <button type="button" class="btn btn-sm btn-outline-primary mt-2" id="addVariantBtn">
+                <i class="fas fa-plus"></i> Agregar variante
+            </button>
+            
+            <hr>
+            <div class="d-flex justify-content-end gap-2">
+                <a href="{% url 'products:list' %}" class="btn btn-secondary">Cancelar</a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Guardar producto
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal para agregar categoría -->
+<div class="modal fade" id="categoryModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Nueva categoría</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="categoryForm">
+                    <div class="mb-3">
+                        <label>Nombre de la categoría</label>
+                        <input type="text" class="form-control" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label>Descripción</label>
+                        <textarea class="form-control" name="description" rows="2"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="saveCategory()">Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Agregar variante
+    document.getElementById('addVariantBtn').addEventListener('click', function() {
+        const container = document.getElementById('variantsContainer');
+        const row = document.createElement('div');
+        row.className = 'row variant-row mb-2';
+        row.innerHTML = `
+            <div class="col-md-5">
+                <input type="text" class="form-control" name="variant_name[]" placeholder="Nombre variante">
+            </div>
+            <div class="col-md-3">
+                <input type="number" class="form-control" name="variant_price[]" placeholder="Precio" step="0.01">
+            </div>
+            <div class="col-md-3">
+                <input type="number" class="form-control" name="variant_stock[]" placeholder="Stock" value="0">
+            </div>
+            <div class="col-md-1">
+                <button type="button" class="btn btn-danger btn-sm remove-variant">×</button>
+            </div>
+        `;
+        container.appendChild(row);
+        
+        row.querySelector('.remove-variant').addEventListener('click', function() {
+            if (container.children.length > 1) {
+                row.remove();
+            }
+        });
+    });
+
+    // Eliminar variante
+    document.querySelectorAll('.remove-variant').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const container = document.getElementById('variantsContainer');
+            if (container.children.length > 1) {
+                this.closest('.variant-row').remove();
+            }
+        });
+    });
+
+    // Guardar producto
+    document.getElementById('productForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        
+        fetch('{% if product %}{% url "products:edit" product.id %}{% else %}{% url "products:create" %}{% endif %}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                window.location.href = '{% url "products:list" %}';
+            }
+        });
+    });
+
+    // Abrir modal de categoría
+    function openCategoryModal() {
+        new bootstrap.Modal(document.getElementById('categoryModal')).show();
+    }
+
+    // Guardar categoría
+    function saveCategory() {
+        const form = document.getElementById('categoryForm');
+        const formData = new FormData(form);
+        
+        fetch('{% url "products:category_create" %}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                location.reload();
+            }
+        });
+    }
+</script>
+{% endblock %}
