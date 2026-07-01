@@ -1,0 +1,131 @@
+<!-- Modal de Pago -->
+<div class="modal fade" id="paymentModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header" style="background: #6C63FF; color: white;">
+                <h5 class="modal-title">
+                    <i class="fas fa-credit-card"></i> Finalizar Pago
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Resumen de la orden -->
+                <div class="payment-summary mb-4">
+                    <h6 class="fw-bold">Resumen de la orden</h6>
+                    <div class="d-flex justify-content-between">
+                        <span>Subtotal:</span>
+                        <span id="paymentSubtotal">$0.00</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>IVA (16%):</span>
+                        <span id="paymentTax">$0.00</span>
+                    </div>
+                    <div class="d-flex justify-content-between fw-bold fs-5">
+                        <span>Total:</span>
+                        <span id="paymentTotal" style="color: #6C63FF;">$0.00</span>
+                    </div>
+                </div>
+
+                <!-- Método de Pago -->
+                <div class="payment-methods mb-4">
+                    <label class="fw-bold">Método de Pago</label>
+                    <div class="d-flex flex-wrap gap-2 mt-2" id="paymentMethodsContainer">
+                        <button class="btn btn-outline-primary payment-method-btn active" data-method="cash" onclick="selectPaymentMethod('cash')">
+                            <i class="fas fa-money-bill"></i> Efectivo
+                        </button>
+                        <button class="btn btn-outline-primary payment-method-btn" data-method="card" onclick="selectPaymentMethod('card')">
+                            <i class="fas fa-credit-card"></i> Tarjeta
+                        </button>
+                        <button class="btn btn-outline-primary payment-method-btn" data-method="transfer" onclick="selectPaymentMethod('transfer')">
+                            <i class="fas fa-exchange-alt"></i> Transferencia
+                        </button>
+                        <button class="btn btn-outline-primary payment-method-btn" data-method="qr" onclick="selectPaymentMethod('qr')">
+                            <i class="fas fa-qrcode"></i> QR Code
+                        </button>
+                        <button class="btn btn-outline-primary payment-method-btn" data-method="mix" onclick="selectPaymentMethod('mix')">
+                            <i class="fas fa-hand-holding-usd"></i> Mixto
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Campo para efectivo (solo visible cuando se selecciona Efectivo o Mixto) -->
+                
+                <div id="cashAmountField" class="mb-3" style="display: block;">
+                    <label class="fw-bold">Monto en efectivo</label>
+                    <div class="input-group">
+                        <span class="input-group-text">$</span>
+                        <input type="number" class="form-control" id="cashAmount" placeholder="0.00" step="0.01" value="0.00">
+                    </div>
+                    <small class="text-muted">Cambio: <span id="changeAmount">$0.00</span></small>
+                </div>
+
+                <!-- Campo para tarjeta (solo visible cuando se selecciona Tarjeta o Mixto) -->
+                <div id="cardAmountField" class="mb-3" style="display: none;">
+                    <label class="fw-bold">Monto con tarjeta</label>
+                    <div class="input-group">
+                        <span class="input-group-text">$</span>
+                        <input type="number" class="form-control" id="cardAmount" placeholder="0.00" step="0.01" value="0.00">
+                    </div>
+                </div>
+
+                <!-- ===== NUEVO: Total pagado ===== -->
+                <div id="totalPaidField" class="mb-3" style="display: none;">
+                    <div class="d-flex justify-content-between fw-bold" style="color: #28a745; font-size: 16px; padding: 8px 12px; background: #f0fdf4; border-radius: 8px;">
+                        <span>Total pagado:</span>
+                        <span id="totalPaidAmount">$0.00</span>
+                    </div>
+                </div>
+
+                <!-- ===== NUEVO: Alerta de pago insuficiente ===== -->
+                <div id="paymentAlert" class="alert alert-danger" style="display: none; padding: 8px 12px; font-size: 13px;">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span id="paymentAlertMessage">El monto pagado es insuficiente</span>
+                </div>
+
+                <!-- Cliente -->
+                <div class="client-section mb-3">
+                    <label class="fw-bold">Cliente</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="clientSearch" placeholder="Buscar cliente por nombre o teléfono...">
+                        <button class="btn btn-outline-secondary" onclick="searchClient()">
+                            <i class="fas fa-search"></i>
+                        </button>
+                        <button class="btn btn-outline-success" onclick="showNewClientForm()">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                    <div id="clientResults" class="mt-2" style="display: none;"></div>
+                    <div id="newClientForm" style="display: none;" class="mt-2 p-3 border rounded">
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <input type="text" class="form-control" id="newClientName" placeholder="Nombre">
+                            </div>
+                            <div class="col-6">
+                                <input type="text" class="form-control" id="newClientPhone" placeholder="Teléfono">
+                            </div>
+                            <div class="col-12">
+                                <input type="text" class="form-control" id="newClientAddress" placeholder="Dirección">
+                            </div>
+                            <div class="col-12">
+                                <button class="btn btn-sm btn-success" onclick="saveNewClient()">
+                                    <i class="fas fa-save"></i> Guardar Cliente
+                                </button>
+                                <button class="btn btn-sm btn-secondary" onclick="hideNewClientForm()">
+                                    Cancelar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <input type="hidden" id="selectedClientId">
+                    <span id="selectedClientName" class="badge bg-info mt-2" style="display: none;"></span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button class="btn btn-success" onclick="processPayment()">
+                    <i class="fas fa-check"></i> Confirmar Pago
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

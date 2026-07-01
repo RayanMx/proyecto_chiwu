@@ -25,6 +25,23 @@ class Sale(models.Model):
         ('refunded', 'Reembolsado'),
     )
     
+    # En sales/models.py, dentro de la clase Sale:
+    cash_amount = models.DecimalField(
+        'Monto en efectivo', 
+        max_digits=12, 
+        decimal_places=2, 
+        null=True, 
+        blank=True
+    )
+
+    card_amount = models.DecimalField(
+        'Monto con tarjeta', 
+        max_digits=12, 
+        decimal_places=2, 
+        null=True, 
+        blank=True
+    )
+    
     user = models.ForeignKey(User, on_delete=models.PROTECT, related_name='sales')
     branch = models.ForeignKey('accounts.Branch', on_delete=models.PROTECT, related_name='sales', null=True)
     client = models.ForeignKey('clients.Client', on_delete=models.SET_NULL, null=True, blank=True, related_name='sales')
@@ -44,6 +61,32 @@ class Sale(models.Model):
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    # ===== NUEVO: Asociar venta a caja =====
+    cash_register = models.ForeignKey(
+        'CashRegister', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='sales'
+    )
+    
+    # ===== NUEVO: Monto recibido para cambio =====
+    amount_received = models.DecimalField(
+        'Monto recibido', 
+        max_digits=12, 
+        decimal_places=2, 
+        null=True, 
+        blank=True
+    )
+    
+    change_amount = models.DecimalField(
+        'Cambio', 
+        max_digits=12, 
+        decimal_places=2, 
+        null=True, 
+        blank=True
+    )
 
     class Meta:
         verbose_name = 'Venta'

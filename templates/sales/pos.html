@@ -63,10 +63,8 @@
                 {% include 'sales/modules/_menu_products.html' with module='counter' %}
             </div>
 
-            
             <!-- Domicilio -->
             <div id="deliveryContent" class="module-content">
-                <!-- ===== NUEVO: Lista de pedidos activos ===== -->
                 <div class="delivery-orders-list mb-3">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <h6 class="mb-0"><i class="fas fa-truck"></i> Pedidos a Domicilio Activos</h6>
@@ -80,7 +78,6 @@
                     </div>
                 </div>
 
-                <!-- Formulario de nuevo pedido -->
                 <div class="delivery-form">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h6 class="mb-0"><i class="fas fa-plus-circle"></i> Nuevo Pedido a Domicilio</h6>
@@ -132,7 +129,6 @@
             <span class="order-info" id="cartOrderInfo">
                 <i class="fas fa-receipt"></i> #<span id="orderNumber">0</span>
             </span>
-            <!-- Botón de ocultar - Solo visible en Mesas y Domicilio -->
             <button class="btn-close-cart" id="hideCartBtn" onclick="hideCart()" title="Ocultar carrito" style="display: none;">
                 <i class="fas fa-times"></i>
             </button>
@@ -157,36 +153,40 @@
                 <span class="value" id="cartTotal">$0.00</span>
             </div>
             <div class="d-flex gap-2 mt-2">
-                 <button class="btn btn-warning flex-fill" id="assignDeliveryBtn" onclick="assignDeliveryOrder()" style="display: none;">
+                <button class="btn btn-warning flex-fill" id="assignDeliveryBtn" onclick="assignDeliveryOrder()" style="display: none;">
                     <i class="fas fa-check-circle"></i> Asignar Pedido
                 </button>
-
                 <button class="btn btn-danger flex-fill" onclick="cancelOrder()">
                     <i class="fas fa-times"></i> Cancelar Pedido
                 </button>
-                <button class="btn btn-success flex-fill" id="checkoutBtn" disabled onclick="processCheckout()">
+                <button class="btn btn-success flex-fill" id="checkoutBtn" disabled onclick="openPaymentModal()">
                     <i class="fas fa-credit-card"></i> Cobrar
                 </button>
             </div>
         </div>
     </div>
 
-<!-- ===== MODAL PERSONALIZADOR ===== -->
-<div class="modal fade" id="productCustomizerModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="customizerTitle">
-                    <i class="fas fa-plus-circle"></i> Personalizar
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body" id="customizerBody">
-                <!-- Cargado vía JS -->
+    <!-- ===== MODAL PERSONALIZADOR ===== -->
+    <div class="modal fade" id="productCustomizerModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="customizerTitle">
+                        <i class="fas fa-plus-circle"></i> Personalizar
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="customizerBody">
+                    <!-- Cargado vía JS -->
+                </div>
             </div>
         </div>
     </div>
-</div>
+
+    <!-- ===== MODALES DE PAGO Y TICKET ===== -->
+    {% include 'sales/modules/_payment_modal.html' %}
+    {% include 'sales/modules/_ticket_modal.html' %}
+
 {% endblock %}
 
 {% block extra_js %}

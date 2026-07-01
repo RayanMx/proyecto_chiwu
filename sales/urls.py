@@ -45,4 +45,5 @@ urlpatterns = [
     path('cleanup-tables/', views.cleanup_tables, name='cleanup_tables'),
     path('table/delete/<int:pk>/', views.table_delete, name='table_delete'),
     path('api/table-order/<int:table_id>/', views.get_table_order, name='table_order_api'),
+    path('sale/<int:sale_id>/ticket-data/', views.ticket_data, name='ticket_data'),
 ]

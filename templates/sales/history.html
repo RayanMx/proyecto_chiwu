@@ -173,9 +173,16 @@
                             {% endif %}
                         </td>
                         <td>
-                            <button class="btn btn-sm btn-outline-primary" onclick="viewOrder('{{ order.id }}')">
-                                <i class="fas fa-eye"></i>
-                            </button>
+                            <div class="btn-group" role="group">
+                                <!-- Botón Ver Detalle (Ojo) -->
+                                <button class="btn btn-sm btn-outline-primary" onclick="viewOrder('{{ order.id }}')" title="Ver detalle">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <!-- Botón Reimprimir Ticket -->
+                                <button class="btn btn-sm btn-outline-success" onclick="reprintTicket({{ order.id }})" title="Reimprimir ticket">
+                                    <i class="fas fa-receipt"></i>
+                                </button>
+                            </div>
                         </td>
                     </tr>
                     {% empty %}

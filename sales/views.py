@@ -42,19 +42,86 @@ def pos_view(request):
 @login_required
 def create_sale(request):
     if request.method == 'POST':
+        # ===== VALIDACIÓN: Caja obligatoria =====
+        cash_register = CashRegister.objects.filter(user=request.user, is_open=True).first()
+        if not cash_register:
+            return JsonResponse({'status': 'error', 'message': 'Debes abrir caja primero'}, status=400)
+        # =====================================
+        
         try:
             data = json.loads(request.body)
+            
+            # Obtener datos del pago
+            payment_method = data.get('payment_method', 'cash')
+            amount_received = data.get('amount_received')
+            client_id = data.get('client')
+            subtotal = data.get('subtotal', 0)
+            total = data.get('total', 0)
+            service_type = data.get('service_type', 'dine_in')
+            table_id = data.get('table_id')
+            client_name = data.get('client_name', 'Cliente general')
+            
+            # ===== NUEVO: Obtener montos por método de pago =====
+            cash_amount = data.get('cash_amount')
+            card_amount = data.get('card_amount')
+            
+            # Calcular IVA (16%)
+            tax = subtotal * 0.16
+            
+            # ===== NUEVO: Calcular cambio según el método =====
+            change_amount = None
+            if payment_method == 'cash' and amount_received:
+                change_amount = float(amount_received) - float(total)
+                if change_amount < 0:
+                    change_amount = 0
+            elif payment_method == 'mix':
+                # Para pago mixto, el cambio solo aplica si el efectivo excede el total
+                if cash_amount:
+                    cash_float = float(cash_amount)
+                    total_float = float(total)
+                    if cash_float > total_float:
+                        change_amount = cash_float - total_float
+                    else:
+                        change_amount = 0
+            
+            # ===== NUEVO: Determinar el monto recibido según método =====
+            if payment_method == 'cash':
+                amount_received = float(cash_amount) if cash_amount else float(total)
+            elif payment_method == 'card':
+                amount_received = float(card_amount) if card_amount else float(total)
+            elif payment_method == 'mix':
+                amount_received = (float(cash_amount) if cash_amount else 0) + (float(card_amount) if card_amount else 0)
+            else:
+                amount_received = float(total)
             
             # Crear la venta
             sale = Sale.objects.create(
                 user=request.user,
-                service_type=data.get('service_type', 'dine_in'),
-                status='pending',
-                payment_status='pending',
-                total=data.get('total', 0),
-                subtotal=data.get('total', 0),
-                notes=f"Cliente: {data.get('client', '')}"
+                service_type=service_type,
+                status='completed',
+                payment_status='paid',
+                payment_method=payment_method,
+                total=total,
+                subtotal=subtotal,
+                tax=tax,
+                notes=f"Cliente: {client_name}",
+                cash_register=cash_register,
+                amount_received=amount_received,
+                change_amount=change_amount if change_amount and change_amount > 0 else None,
+                # ===== NUEVO: Guardar montos por método =====
+                cash_amount=cash_amount if cash_amount else None,
+                card_amount=card_amount if card_amount else None
             )
+            
+            # Asignar cliente si existe
+            if client_id:
+                try:
+                    from clients.models import Client
+                    client = Client.objects.get(id=client_id)
+                    sale.client = client
+                    sale.save()
+                except:
+                    pass
             
             # Crear los items
             for item in data.get('items', []):
@@ -67,14 +134,26 @@ def create_sale(request):
                     subtotal=item['price'] * item['quantity']
                 )
             
-            # Si es dine_in y hay table_id, asociar la mesa
-            if data.get('service_type') == 'dine_in' and data.get('table_id'):
-                table = Table.objects.get(id=data.get('table_id'))
-                table.current_sale = sale
-                table.status = 'occupied'
-                table.save()
+            # Si es dine_in y hay table_id, liberar la mesa
+            if service_type == 'dine_in' and table_id:
+                try:
+                    table = Table.objects.get(id=table_id)
+                    table.current_sale = None
+                    table.status = 'free'
+                    table.save()
+                except Table.DoesNotExist:
+                    pass
             
-            return JsonResponse({'status': 'success', 'order_id': sale.id})
+            # ===== NUEVO: Respuesta con más información =====
+            return JsonResponse({
+                'status': 'success', 
+                'order_id': sale.id,
+                'change': change_amount if change_amount and change_amount > 0 else 0,
+                'payment_method': payment_method,
+                'amount_received': amount_received,
+                'cash_amount': cash_amount,
+                'card_amount': card_amount
+            })
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
     return JsonResponse({'status': 'error'}, status=405)
@@ -1189,3 +1268,59 @@ def table_detail_api(request, pk):
             'status': 'error',
             'message': str(e)
         }, status=400)
+
+@login_required
+def ticket_data(request, sale_id):
+    sale = get_object_or_404(Sale, id=sale_id)
+    items = sale.items.all()
+    
+    table = None
+    if hasattr(sale, 'table_orders') and sale.table_orders.exists():
+        table = sale.table_orders.first()
+    
+    client_name = sale.client.name if sale.client else 'Cliente general'
+    
+    payment_methods = {
+        'cash': 'Efectivo',
+        'card': 'Tarjeta',
+        'transfer': 'Transferencia',
+        'qr': 'QR Code',
+        'mix': 'Mixto'
+    }
+    payment_method_display = payment_methods.get(sale.payment_method, sale.payment_method or 'Efectivo')
+    
+    # ===== NUEVO: Desglose de pago =====
+    payment_breakdown = []
+    if sale.cash_amount:
+        payment_breakdown.append(f"Efectivo: ${float(sale.cash_amount):.2f}")
+    if sale.card_amount:
+        payment_breakdown.append(f"Tarjeta: ${float(sale.card_amount):.2f}")
+    
+    return JsonResponse({
+        'sale': {
+            'id': sale.id,
+            'created_at': sale.created_at.strftime('%d/%m/%Y %H:%M'),
+            'subtotal': float(sale.subtotal),
+            'tax': float(sale.tax),
+            'total': float(sale.total),
+            'payment_method': payment_method_display,
+            'client': client_name,
+            'table': table.number if table else None,
+            'amount_received': float(sale.amount_received) if sale.amount_received else None,
+            'change_amount': float(sale.change_amount) if sale.change_amount else None,
+            'cash_amount': float(sale.cash_amount) if sale.cash_amount else None,
+            'card_amount': float(sale.card_amount) if sale.card_amount else None,
+            'payment_breakdown': payment_breakdown
+        },
+        'items': [{
+            'quantity': item.quantity,
+            'product_name': item.product.name,
+            'subtotal': float(item.subtotal),
+            'price': float(item.price)
+        } for item in items],
+        'business_name': 'Chiwu Antojería',
+        'business_address': 'Dirección del negocio',
+        'business_phone': '555-123-4567',
+        'business_ruc': '1234567890',
+        'business_email': 'info@chiwu.com'
+    })

@@ -2130,7 +2130,7 @@ function assignDeliveryOrder() {
     });
 }
 
-// ==================== CANCELAR PEDIDO A DOMICILIO ====================
+
 // ==================== CANCELAR PEDIDO A DOMICILIO ====================
 function cancelDeliveryOrder(orderId) {
     const order = deliveryOrders.find(o => o.id === orderId);
@@ -2202,4 +2202,707 @@ function cancelDeliveryOrder(orderId) {
         console.error('❌ Error:', error);
         showNotification('error', '❌ Error de conexión: ' + error.message);
     });
+}
+
+// ==================== PAGO Y TICKET ====================
+
+// Variables globales para pago
+let currentSaleId = null;
+let currentClientId = null;
+
+// Abrir modal de pago
+// Abrir modal de pago
+function openPaymentModal() {
+    console.log('🔄 Abriendo modal de pago...');
+    
+    // Obtener el carrito
+    let cart;
+    if (currentModule === 'tables') {
+        if (!currentTableId || !carts.tables[currentTableId]) {
+            showNotification('warning', '⚠️ No hay productos en esta mesa');
+            return;
+        }
+        cart = carts.tables[currentTableId];
+    } else {
+        cart = carts[currentModule];
+    }
+    
+    if (cart.length === 0) {
+        showNotification('warning', '⚠️ No hay productos');
+        return;
+    }
+    
+    // Calcular totales
+    let subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    let tax = subtotal * 0.16;
+    let total = subtotal + tax;
+    
+    // Actualizar modal
+    const subtotalEl = document.getElementById('paymentSubtotal');
+    const taxEl = document.getElementById('paymentTax');
+    const totalEl = document.getElementById('paymentTotal');
+    const cashInput = document.getElementById('cashAmount');
+    const cardInput = document.getElementById('cardAmount');
+    const changeEl = document.getElementById('changeAmount');
+    const totalPaidEl = document.getElementById('totalPaidAmount');
+    const alertEl = document.getElementById('paymentAlert');
+    const btn = document.querySelector('#paymentModal .btn-success');
+    
+    if (subtotalEl) subtotalEl.textContent = '$' + subtotal.toFixed(2);
+    if (taxEl) taxEl.textContent = '$' + tax.toFixed(2);
+    if (totalEl) totalEl.textContent = '$' + total.toFixed(2);
+    
+    // Inicializar campos de pago
+    if (cashInput) cashInput.value = total.toFixed(2);
+    if (cardInput) cardInput.value = '0.00';
+    if (changeEl) changeEl.textContent = '$0.00';
+    if (totalPaidEl) totalPaidEl.textContent = '$' + total.toFixed(2);
+    
+    // Ocultar alerta
+    if (alertEl) alertEl.style.display = 'none';
+    
+    // Habilitar botón de confirmar
+    if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-check"></i> Confirmar Pago';
+    }
+    
+    // Limpiar cliente
+    const selectedClientId = document.getElementById('selectedClientId');
+    const selectedClientName = document.getElementById('selectedClientName');
+    const clientSearch = document.getElementById('clientSearch');
+    const clientResults = document.getElementById('clientResults');
+    const newClientForm = document.getElementById('newClientForm');
+    
+    if (selectedClientId) selectedClientId.value = '';
+    if (selectedClientName) selectedClientName.style.display = 'none';
+    if (clientSearch) clientSearch.value = '';
+    if (clientResults) clientResults.style.display = 'none';
+    if (newClientForm) newClientForm.style.display = 'none';
+    
+    // ===== NUEVO: Inicializar método de pago =====
+    // Seleccionar "Efectivo" por defecto
+    selectPaymentMethod('cash');
+    
+    // ===== NUEVO: Actualizar total pagado después de un pequeño delay =====
+    setTimeout(function() {
+        updateTotalPaid();
+        // Forzar cálculo de cambio
+        calculateChange();
+    }, 200);
+    
+    // Mostrar modal
+    const modalElement = document.getElementById('paymentModal');
+    if (modalElement) {
+        const modal = new bootstrap.Modal(modalElement);
+        modal.show();
+    } else {
+        showNotification('error', '❌ Modal de pago no encontrado');
+    }
+}
+
+// Buscar cliente
+function searchClient() {
+    const query = document.getElementById('clientSearch').value.trim();
+    if (query.length < 2) {
+        showNotification('warning', 'Escribe al menos 2 caracteres');
+        return;
+    }
+    
+    fetch(`/clients/api/search/?q=${encodeURIComponent(query)}`)
+        .then(response => response.json())
+        .then(data => {
+            const results = document.getElementById('clientResults');
+            if (data.results && data.results.length > 0) {
+                results.innerHTML = data.results.map(client => `
+                    <div class="client-result-item p-2 border-bottom" onclick="selectClient(${client.id}, '${client.name}')">
+                        <strong>${client.name}</strong>
+                        <span class="text-muted"> - ${client.phone || 'Sin teléfono'}</span>
+                    </div>
+                `).join('');
+                results.style.display = 'block';
+            } else {
+                results.innerHTML = '<div class="text-muted p-2">No se encontraron clientes</div>';
+                results.style.display = 'block';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('error', 'Error al buscar clientes');
+        });
+}
+
+// Seleccionar cliente
+function selectClient(id, name) {
+    document.getElementById('selectedClientId').value = id;
+    document.getElementById('selectedClientName').textContent = 'Cliente: ' + name;
+    document.getElementById('selectedClientName').style.display = 'inline-block';
+    document.getElementById('clientResults').style.display = 'none';
+    document.getElementById('clientSearch').value = '';
+}
+
+// Mostrar formulario nuevo cliente
+function showNewClientForm() {
+    document.getElementById('newClientForm').style.display = 'block';
+    document.getElementById('clientResults').style.display = 'none';
+}
+
+// Ocultar formulario nuevo cliente
+function hideNewClientForm() {
+    document.getElementById('newClientForm').style.display = 'none';
+    document.getElementById('newClientName').value = '';
+    document.getElementById('newClientPhone').value = '';
+    document.getElementById('newClientAddress').value = '';
+}
+
+// Guardar nuevo cliente
+function saveNewClient() {
+    const name = document.getElementById('newClientName').value.trim();
+    const phone = document.getElementById('newClientPhone').value.trim();
+    const address = document.getElementById('newClientAddress').value.trim();
+    
+    if (!name) {
+        showNotification('warning', 'El nombre es obligatorio');
+        return;
+    }
+    
+    const csrfToken = getCsrfToken();
+    
+    fetch('/clients/api/create/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({ name, phone, address })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            selectClient(data.id, name);
+            hideNewClientForm();
+            showNotification('success', 'Cliente creado correctamente');
+        } else {
+            showNotification('error', 'Error al crear cliente: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('error', 'Error al crear cliente');
+    });
+}
+
+// Procesar pago
+// Procesar pago
+function processPayment() {
+    // Obtener método de pago
+    const methodBtn = document.querySelector('.payment-method-btn.active');
+    if (!methodBtn) {
+        showNotification('warning', 'Selecciona un método de pago');
+        return;
+    }
+    const paymentMethod = methodBtn.dataset.method;
+    
+    // Obtener cliente
+    const clientId = document.getElementById('selectedClientId')?.value || null;
+    const clientName = document.getElementById('selectedClientName')?.textContent.replace('Cliente: ', '') || 'Cliente general';
+    
+    // Obtener carrito
+    let cart;
+    let serviceType = 'takeaway';
+    let tableId = null;
+    
+    if (currentModule === 'tables') {
+        cart = carts.tables[currentTableId];
+        serviceType = 'dine_in';
+        tableId = currentTableId;
+    } else if (currentModule === 'delivery') {
+        cart = carts.delivery;
+        serviceType = 'delivery';
+    } else {
+        cart = carts.counter;
+        serviceType = 'takeaway';
+    }
+    
+    if (!cart || cart.length === 0) {
+        showNotification('warning', '⚠️ No hay productos');
+        return;
+    }
+    
+    // Calcular totales
+    let subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    let tax = subtotal * 0.16;
+    let total = subtotal + tax;
+    
+    // Obtener montos según método de pago
+    let amountReceived = null;
+    let cardAmount = null;
+    let cashAmount = null;
+    
+    if (paymentMethod === 'cash') {
+        cashAmount = parseFloat(document.getElementById('cashAmount')?.value) || total;
+        amountReceived = cashAmount;
+    } else if (paymentMethod === 'card') {
+        cardAmount = parseFloat(document.getElementById('cardAmount')?.value) || total;
+        amountReceived = cardAmount;
+    } else if (paymentMethod === 'mix') {
+        cashAmount = parseFloat(document.getElementById('cashAmount')?.value) || 0;
+        cardAmount = parseFloat(document.getElementById('cardAmount')?.value) || 0;
+        amountReceived = cashAmount + cardAmount;
+    } else if (paymentMethod === 'transfer' || paymentMethod === 'qr') {
+        amountReceived = total; // Pago completo
+    }
+    
+    // Validar que el pago cubra el total
+    if (amountReceived < total) {
+        showNotification('warning', `⚠️ El monto pagado ($${amountReceived.toFixed(2)}) es menor al total ($${total.toFixed(2)})`);
+        return;
+    }
+    
+    const csrfToken = getCsrfToken();
+    
+    const orderData = {
+        items: cart.map(item => ({
+            id: item.id,
+            quantity: item.quantity,
+            price: item.price,
+            variant: item.variant || null,
+            modifiers: item.modifiers || [],
+            notes: item.notes || ''
+        })),
+        service_type: serviceType,
+        table_id: tableId,
+        total: total,
+        subtotal: subtotal,
+        client: clientId,
+        client_name: clientName,
+        payment_method: paymentMethod,
+        amount_received: amountReceived,
+        cash_amount: cashAmount,
+        card_amount: cardAmount
+    };
+    
+    const btn = document.querySelector('#paymentModal .btn-success');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
+    }
+    
+    fetch('/pos/api/create-sale/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify(orderData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            currentSaleId = data.order_id;
+            
+            // Cerrar modal de pago
+            const paymentModal = bootstrap.Modal.getInstance(document.getElementById('paymentModal'));
+            paymentModal.hide();
+            
+            // Limpiar carrito
+            if (currentModule === 'tables' && currentTableId) {
+                carts.tables[currentTableId] = [];
+                localStorage.removeItem(`cart_table_${currentTableId}`);
+                const card = document.querySelector(`[data-table-id="${currentTableId}"]`);
+                if (card) {
+                    card.className = 'table-card free';
+                    const statusEl = card.querySelector('.table-status');
+                    if (statusEl) {
+                        statusEl.textContent = 'Libre';
+                        statusEl.className = 'table-status free';
+                    }
+                    const badge = card.querySelector('.table-badge-items');
+                    if (badge) badge.remove();
+                }
+            } else {
+                carts[currentModule] = [];
+                localStorage.removeItem(`cart_${currentModule}`);
+            }
+            
+            updateCart();
+            updateModuleBadges();
+            
+            // Mostrar ticket
+            showTicket(data.order_id);
+            
+            showNotification('success', '✅ Pedido #' + data.order_id + ' completado');
+        } else {
+            throw new Error(data.message || 'Error al crear orden');
+        }
+    })
+    .catch(error => {
+        console.error('❌ Error:', error);
+        showNotification('error', '❌ Error: ' + error.message);
+    })
+    .finally(() => {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-check"></i> Confirmar Pago';
+        }
+    });
+}
+
+// Mostrar ticket
+function showTicket(saleId) {
+    fetch(`/pos/sale/${saleId}/ticket-data/`)
+        .then(response => response.json())
+        .then(data => {
+            const content = document.getElementById('ticketContent');
+            content.innerHTML = generateTicketHTML(data);
+            
+            const modal = new bootstrap.Modal(document.getElementById('ticketModal'));
+            modal.show();
+        })
+        .catch(error => {
+            console.error('❌ Error:', error);
+            showNotification('error', 'Error al generar ticket');
+        });
+}
+
+// Generar HTML del ticket
+function generateTicketHTML(data) {
+    const itemsHtml = data.items.map(item => `
+        <tr>
+            <td>${item.quantity}x</td>
+            <td>${item.product_name}</td>
+            <td style="text-align:right;">$${item.subtotal.toFixed(2)}</td>
+        </tr>
+    `).join('');
+    
+    // ===== NUEVO: Generar desglose de pago =====
+    let paymentBreakdownHtml = '';
+    if (data.sale.payment_breakdown && data.sale.payment_breakdown.length > 0) {
+        paymentBreakdownHtml = `
+            <div style="display: flex; flex-direction: column; font-size: 12px; margin-top: 4px; padding-top: 4px; border-top: 1px dashed #ccc;">
+                <span style="font-weight: 600;">Desglose de pago:</span>
+                ${data.sale.payment_breakdown.map(item => `
+                    <div style="display: flex; justify-content: space-between; padding: 1px 0;">
+                        <span>${item.split(':')[0]}:</span>
+                        <span>${item.split(':')[1]}</span>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+    
+    return `
+        <div class="ticket" style="font-family: monospace; padding: 10px; max-width: 300px; margin: 0 auto;">
+            <div style="text-align: center; border-bottom: 1px dashed #ccc; padding-bottom: 10px;">
+                <h4 style="margin: 0;">${data.business_name || 'Chiwu Antojería'}</h4>
+                <p style="font-size: 11px; margin: 2px 0;">${data.business_address || ''}</p>
+                <p style="font-size: 11px; margin: 2px 0;">Tel: ${data.business_phone || ''}</p>
+                <p style="font-size: 11px; margin: 2px 0;">RUC: ${data.business_ruc || ''}</p>
+            </div>
+            
+            <div style="padding: 8px 0; border-bottom: 1px dashed #ccc; font-size: 12px;">
+                <p style="margin: 2px 0;"><strong>Orden #${data.sale.id}</strong></p>
+                <p style="margin: 2px 0;">Fecha: ${data.sale.created_at}</p>
+                <p style="margin: 2px 0;">Cliente: ${data.sale.client || 'Cliente general'}</p>
+                ${data.sale.table ? `<p style="margin: 2px 0;">Mesa: ${data.sale.table}</p>` : ''}
+            </div>
+            
+            <div style="padding: 8px 0; border-bottom: 1px dashed #ccc;">
+                <table style="width: 100%; font-size: 12px;">
+                    <thead>
+                        <tr>
+                            <th style="text-align:left;">Cant</th>
+                            <th style="text-align:left;">Producto</th>
+                            <th style="text-align:right;">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${itemsHtml}
+                    </tbody>
+                </table>
+            </div>
+            
+            <div style="padding: 8px 0; font-size: 13px;">
+                <div style="display: flex; justify-content: space-between;">
+                    <span>Subtotal:</span>
+                    <span>$${data.sale.subtotal.toFixed(2)}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span>IVA (16%):</span>
+                    <span>$${data.sale.tax.toFixed(2)}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-weight: bold; border-top: 1px solid #000; padding-top: 5px; font-size: 15px;">
+                    <span>TOTAL:</span>
+                    <span>$${data.sale.total.toFixed(2)}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 12px; margin-top: 5px;">
+                    <span>Método de pago:</span>
+                    <span>${data.sale.payment_method || 'Efectivo'}</span>
+                </div>
+                ${data.sale.amount_received ? `
+                <div style="display: flex; justify-content: space-between; font-size: 12px;">
+                    <span>Recibido:</span>
+                    <span>$${data.sale.amount_received.toFixed(2)}</span>
+                </div>
+                ` : ''}
+                ${data.sale.change_amount && data.sale.change_amount > 0 ? `
+                <div style="display: flex; justify-content: space-between; font-size: 12px;">
+                    <span>Cambio:</span>
+                    <span>$${data.sale.change_amount.toFixed(2)}</span>
+                </div>
+                ` : ''}
+                ${paymentBreakdownHtml}
+            </div>
+            
+            <div style="text-align: center; border-top: 1px dashed #ccc; padding-top: 8px; font-size: 11px;">
+                <p style="margin: 2px 0;">¡Gracias por su compra!</p>
+                <p style="margin: 2px 0; color: #999;">${data.sale.created_at}</p>
+            </div>
+        </div>
+    `;
+}
+
+// Imprimir ticket
+function printTicket() {
+    const content = document.getElementById('ticketContent');
+    const win = window.open('', '_blank', 'width=400,height=600');
+    win.document.write(`
+        <html>
+            <head>
+                <title>Ticket</title>
+                <style>
+                    body { font-family: monospace; padding: 10px; }
+                    .ticket { max-width: 300px; margin: 0 auto; }
+                </style>
+            </head>
+            <body>
+                ${content.innerHTML}
+                <script>
+                    window.onload = function() { window.print(); }
+                <\/script>
+            </body>
+        </html>
+    `);
+    win.document.close();
+}
+
+// Descargar PDF del ticket
+function downloadTicket() {
+    const content = document.getElementById('ticketContent');
+    const win = window.open('', '_blank', 'width=400,height=600');
+    win.document.write(`
+        <html>
+            <head>
+                <title>Ticket</title>
+                <style>
+                    body { font-family: monospace; padding: 10px; }
+                    .ticket { max-width: 300px; margin: 0 auto; }
+                </style>
+            </head>
+            <body>
+                ${content.innerHTML}
+                <script>
+                    window.onload = function() { 
+                        window.print(); 
+                    }
+                <\/script>
+            </body>
+        </html>
+    `);
+    win.document.close();
+}
+
+// ==================== SELECCIONAR MÉTODO DE PAGO ====================
+function selectPaymentMethod(method) {
+    console.log('💰 Seleccionando método de pago:', method);
+    
+    // Desactivar todos los botones
+    document.querySelectorAll('.payment-method-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // Activar el botón seleccionado
+    const selectedBtn = document.querySelector(`.payment-method-btn[data-method="${method}"]`);
+    if (selectedBtn) {
+        selectedBtn.classList.add('active');
+    }
+    
+    // Mostrar/ocultar campos según el método
+    const cashField = document.getElementById('cashAmountField');
+    const cardField = document.getElementById('cardAmountField');
+    const cashInput = document.getElementById('cashAmount');
+    const cardInput = document.getElementById('cardAmount');
+    const total = parseFloat(document.getElementById('paymentTotal')?.textContent.replace('$', '')) || 0;
+    
+    // Ocultar todos los campos primero
+    if (cashField) cashField.style.display = 'none';
+    if (cardField) cardField.style.display = 'none';
+    
+    // Mostrar campos según el método
+    if (method === 'cash') {
+        // Solo efectivo - mostrar campo de efectivo
+        if (cashField) {
+            cashField.style.display = 'block';
+            if (cashInput) cashInput.value = total.toFixed(2);
+        }
+        // Calcular cambio
+        calculateChange();
+        
+    } else if (method === 'card') {
+        // Solo tarjeta - mostrar campo de tarjeta
+        if (cardField) {
+            cardField.style.display = 'block';
+            if (cardInput) cardInput.value = total.toFixed(2);
+        }
+        if (cashField) cashField.style.display = 'none';
+        
+    } else if (method === 'transfer' || method === 'qr') {
+        // Transferencia o QR - sin campos de monto (pago completo)
+        if (cashField) cashField.style.display = 'none';
+        if (cardField) cardField.style.display = 'none';
+        
+    } else if (method === 'mix') {
+        // Mixto - mostrar ambos campos
+        if (cashField) cashField.style.display = 'block';
+        if (cardField) cardField.style.display = 'block';
+        if (cashInput) cashInput.value = '0.00';
+        if (cardInput) cardInput.value = '0.00';
+    }
+}
+
+// ==================== CALCULAR CAMBIO ====================
+function calculateChange() {
+    const total = parseFloat(document.getElementById('paymentTotal')?.textContent.replace('$', '')) || 0;
+    const cashAmount = parseFloat(document.getElementById('cashAmount')?.value) || 0;
+    const change = cashAmount - total;
+    const changeEl = document.getElementById('changeAmount');
+    if (changeEl) {
+        changeEl.textContent = '$' + (change > 0 ? change.toFixed(2) : '0.00');
+    }
+}
+
+
+
+// ==================== EVENTOS DE INPUT ====================
+document.addEventListener('DOMContentLoaded', function() {
+    // Calcular cambio al escribir en efectivo
+    const cashInput = document.getElementById('cashAmount');
+    if (cashInput) {
+        cashInput.addEventListener('input', function() {
+            calculateChange();
+            updateTotalPaid();
+        });
+    }
+    
+    // Validar pago al escribir en tarjeta
+    const cardInput = document.getElementById('cardAmount');
+    if (cardInput) {
+        cardInput.addEventListener('input', function() {
+            updateTotalPaid();
+        });
+    }
+    
+    // También actualizar cuando cambie el método de pago
+    document.querySelectorAll('.payment-method-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            setTimeout(updateTotalPaid, 100);
+        });
+    });
+});
+
+// ==================== VALIDAR PAGO ====================
+function validatePayment() {
+    const methodBtn = document.querySelector('.payment-method-btn.active');
+    if (!methodBtn) return;
+    
+    const method = methodBtn.dataset.method;
+    const total = parseFloat(document.getElementById('paymentTotal')?.textContent.replace('$', '')) || 0;
+    let totalPaid = 0;
+    
+    if (method === 'cash') {
+        totalPaid = parseFloat(document.getElementById('cashAmount')?.value) || 0;
+    } else if (method === 'card') {
+        totalPaid = parseFloat(document.getElementById('cardAmount')?.value) || 0;
+    } else if (method === 'mix') {
+        const cash = parseFloat(document.getElementById('cashAmount')?.value) || 0;
+        const card = parseFloat(document.getElementById('cardAmount')?.value) || 0;
+        totalPaid = cash + card;
+    } else if (method === 'transfer' || method === 'qr') {
+        totalPaid = total; // Pago completo
+    }
+    
+    const btn = document.querySelector('#paymentModal .btn-success');
+    if (btn) {
+        if (totalPaid >= total) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-check"></i> Confirmar Pago';
+        } else {
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Faltan $${(total - totalPaid).toFixed(2)}`;
+        }
+    }
+}
+
+// ==================== ACTUALIZAR TOTAL PAGADO ====================
+function updateTotalPaid() {
+    const methodBtn = document.querySelector('.payment-method-btn.active');
+    if (!methodBtn) return;
+    
+    const method = methodBtn.dataset.method;
+    const total = parseFloat(document.getElementById('paymentTotal')?.textContent.replace('$', '')) || 0;
+    let totalPaid = 0;
+    let cashAmount = 0;
+    let cardAmount = 0;
+    
+    if (method === 'cash') {
+        cashAmount = parseFloat(document.getElementById('cashAmount')?.value) || 0;
+        totalPaid = cashAmount;
+    } else if (method === 'card') {
+        cardAmount = parseFloat(document.getElementById('cardAmount')?.value) || 0;
+        totalPaid = cardAmount;
+    } else if (method === 'mix') {
+        cashAmount = parseFloat(document.getElementById('cashAmount')?.value) || 0;
+        cardAmount = parseFloat(document.getElementById('cardAmount')?.value) || 0;
+        totalPaid = cashAmount + cardAmount;
+    } else if (method === 'transfer' || method === 'qr') {
+        totalPaid = total; // Pago completo
+    }
+    
+    // Actualizar total pagado
+    const totalPaidEl = document.getElementById('totalPaidAmount');
+    if (totalPaidEl) {
+        totalPaidEl.textContent = '$' + totalPaid.toFixed(2);
+    }
+    
+    // Mostrar/ocultar campo de total pagado
+    const totalPaidField = document.getElementById('totalPaidField');
+    if (totalPaidField) {
+        totalPaidField.style.display = 'block';
+    }
+    
+    // Validar y mostrar alerta
+    const alertEl = document.getElementById('paymentAlert');
+    const alertMsg = document.getElementById('paymentAlertMessage');
+    const btn = document.querySelector('#paymentModal .btn-success');
+    
+    if (totalPaid < total) {
+        if (alertEl) {
+            alertEl.style.display = 'block';
+            if (alertMsg) {
+                alertMsg.textContent = `Faltan $${(total - totalPaid).toFixed(2)} para completar el pago`;
+            }
+        }
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Faltan $${(total - totalPaid).toFixed(2)}`;
+        }
+    } else {
+        if (alertEl) {
+            alertEl.style.display = 'none';
+        }
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-check"></i> Confirmar Pago';
+        }
+    }
 }
